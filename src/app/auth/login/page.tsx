@@ -27,7 +27,7 @@ export default function LoginPage() {
     if (json.ok) {
       toast.success("Logged in");
 
-      if (json.user.role === "super_ admin"){
+      if (json.user.role === "super_admin"){
         router.push("/admin");
       } 
       else{

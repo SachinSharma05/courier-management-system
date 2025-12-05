@@ -10,17 +10,13 @@ export async function getServerSession() {
 
     if (!token) return { ok: false };
 
-    // Build ABSOLUTE URL for Vercel
-    let base = process.env.NEXT_PUBLIC_APP_URL 
-            || process.env.VERCEL_PROJECT_PRODUCTION_URL 
-            || process.env.VERCEL_URL;
+    // ----- FIXED BASE URL RESOLUTION -----
+    let base =
+      process.env.NEXT_PUBLIC_APP_URL ||     // Recommended - manually define this
+      process.env.VERCEL_URL ||             // Provided automatically by Vercel
+      "http://localhost:3000";              // Fallback for local dev
 
-    if (!base) {
-      // local dev
-      base = "http://localhost:3000";
-    }
-
-    // Normalize to always include https://
+    // Ensure full URL
     if (!base.startsWith("http")) {
       base = `https://${base}`;
     }
@@ -29,6 +25,7 @@ export async function getServerSession() {
     if (base.endsWith("/")) {
       base = base.slice(0, -1);
     }
+    // -------------------------------------
 
     const res = await fetch(`${base}/api/auth/session`, {
       method: "GET",

@@ -374,7 +374,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
         Destination: "destination",
     };
 
-    return map[label] || label;
+    return map[label] ?? label;
   }
 
   const searchParams = useSearchParams();

@@ -6,4 +6,4 @@ type SortableLabel =
   | "Origin"
   | "Destination";
 
-export type ColKeySortColumn = Record<SortableLabel, string>;
+export type ColKeySortColumn = Record<string, string>;

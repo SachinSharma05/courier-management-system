@@ -8,7 +8,7 @@ export async function POST(req: Request) {
 
   try {
     const base = process.env.NEXT_PUBLIC_APP_URL!;
-    const res = await fetch(`${base}/api/admin/cron/auto-track`, {
+    const res = await fetch(`${base}/api/admin/cron/cleanup-delivered`, {
       method: "GET",
       cache: "no-store",
     });
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json(json);
 
   } catch (err: any) {
-    console.error("AUTO TRACK CRON ERROR:", err);
+    console.error("CLEANUP CRON ERROR:", err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }

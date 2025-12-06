@@ -62,7 +62,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
       <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
         {isExpanded && (
           <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Control Panel
+            Admin Panel
           </span>
         )}
 
@@ -144,6 +144,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           label="Clients"
           icon={<Users size={18} />}
           active={pathname.startsWith("/admin/dtdc/clients")}
+          isExpanded={isExpanded}
+        />
+
+        <SidebarItem
+          href="/admin/providers"
+          label="Clients"
+          icon={<Users size={18} />}
+          active={pathname.startsWith("/admin/providers")}
           isExpanded={isExpanded}
         />
 

@@ -119,7 +119,7 @@ export default function PremiumDashboard() {
   });
 
   return (
-    <div className="min-h-screen p-0 bg-slate-50">
+    <div className="min-h-screen p-2 bg-slate-50">
       {/* HERO */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>

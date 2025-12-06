@@ -1,0 +1,28 @@
+name: CMS Cron Jobs
+
+on:
+  schedule:
+    # Run auto-track every 30 minutes
+    - cron: "*/30 * * * *"
+    # Run cleanup once a day at 2:00 AM
+    - cron: "0 2 * * *"
+  workflow_dispatch: {} # Allow manual execution
+
+jobs:
+  run-crons:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Auto-Track Cron
+        if: github.event.schedule == '*/30 * * * *'
+        run: |
+          curl -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            https://courier-management-system-liard.vercel.app/api/cron/auto-track
+
+      - name: Call Cleanup Cron
+        if: github.event.schedule == '0 2 * * *'
+        run: |
+          curl -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            https://courier-management-system-liard.vercel.app/api/cron/cleanup

@@ -214,7 +214,7 @@ export async function POST(req: Request) {
             }
 
             // Successful parse
-            const hdr = parsed.header;
+            const hdr = parsed.header!;
             const timeline = parsed.timeline;
 
             const prev = existingMap.get(awb);
@@ -308,43 +308,52 @@ export async function POST(req: Request) {
 
       const idMap = new Map(allCons.map((r: any) => [r.awb, r.id]));
 
-      // ---------- BULK INSERT EVENTS (skip orphans) ----------
-      const eventInsertValues = bulkEventRows
+      // ---------- BULK INSERT EVENTS (skip orphans & fix types) ----------
+        const eventInsertValues = bulkEventRows
         .map((e) => {
-          const cid = idMap.get(e.awb);
-          if (!cid) return null;
-          return {
-            consignmentId: cid,
+            const cid = idMap.get(e.awb);
+            if (!cid) return null; // orphan -> skip
+            return {
+            consignmentId: String(cid), // ensure a string (Drizzle typing)
             action: e.action,
             actionDate: e.actionDate,
             actionTime: e.actionTime,
             origin: e.origin,
             destination: e.destination,
             remarks: e.remarks,
-          };
+            };
         })
-        .filter(Boolean);
+        // type guard: tell TS these are not null
+        .filter((v): v is {
+            consignmentId: string;
+            action: any;
+            actionDate: any;
+            actionTime: any;
+            origin: any;
+            destination: any;
+            remarks: any;
+        } => v !== null);
 
-      if (eventInsertValues.length > 0) {
+        if (eventInsertValues.length > 0) {
         await db.insert(trackingEvents).values(eventInsertValues).onConflictDoNothing();
-      }
+        }
 
-      // ---------- BULK INSERT HISTORY (skip orphans) ----------
-      const historyInsertValues = bulkHistoryRows
+        // ---------- BULK INSERT HISTORY (skip orphans & fix types) ----------
+        const historyInsertValues = bulkHistoryRows
         .map((h) => {
-          const cid = idMap.get(h.awb);
-          if (!cid) return null;
-          return {
-            consignmentId: cid,
+            const cid = idMap.get(h.awb);
+            if (!cid) return null;
+            return {
+            consignmentId: String(cid),
             oldStatus: h.oldStatus,
             newStatus: h.newStatus,
-          };
+            };
         })
-        .filter(Boolean);
+        .filter((v): v is { consignmentId: string; oldStatus: any; newStatus: any } => v !== null);
 
-      if (historyInsertValues.length > 0) {
+        if (historyInsertValues.length > 0) {
         await db.insert(trackingHistory).values(historyInsertValues);
-      }
+        }
 
       // push summary for this group
       finalResults.push({

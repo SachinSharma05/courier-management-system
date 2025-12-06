@@ -129,13 +129,9 @@ export default function PremiumDashboard() {
 
         <div className="flex items-center gap-3">
           <Button variant="ghost" onClick={fetchDashboard} className="border px-3">Refresh</Button>
-          <label className="cursor-pointer">
-            <input type="file" accept=".xlsx" className="hidden" onChange={(e) => {
-              if (!e.target.files?.[0]) return;
-              toast.success("Ready to upload: " + e.target.files[0].name);
-            }} />
+          <Link href={`/admin/upload`}>
             <Button variant="default">Upload XLSX</Button>
-          </label>
+          </Link>
         </div>
       </div>
 

@@ -149,7 +149,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
         <SidebarItem
           href="/admin/providers"
-          label="Clients"
+          label="Providers"
           icon={<Users size={18} />}
           active={pathname.startsWith("/admin/providers")}
           isExpanded={isExpanded}

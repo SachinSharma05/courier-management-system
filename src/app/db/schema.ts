@@ -54,14 +54,6 @@ export const clientCredentials = pgTable(
   })
 );
 
-export const clientProviders = pgTable("client_providers", {
-  id: serial("id").primaryKey(),
-  client_id: integer("client_id").notNull(),
-  provider_id: integer("provider_id").notNull(),
-  enabled: boolean("enabled").notNull().default(true),
-  created_at: timestamp("created_at").defaultNow().notNull(),
-});
-
 // weight slabs
 export const courierWeightSlabs = pgTable("courier_weight_slabs", {
   id: serial("id").primaryKey(),

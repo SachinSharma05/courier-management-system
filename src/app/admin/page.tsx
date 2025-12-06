@@ -69,7 +69,7 @@ export default function PremiumDashboard() {
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
-  const [retail, setRetail] = useState<any[]>([]);
+  const [retail, setRetail] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 

@@ -22,11 +22,12 @@ import {
   ClipboardList,
   Building2
 } from "lucide-react";
+import { SidebarProps } from "@/interface/SidebarProps";
 
 const SIDEBAR_WIDE = "w-64";
 const SIDEBAR_NARROW = "w-20"; // ✔ Bigger so icons never cut off
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
+export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 

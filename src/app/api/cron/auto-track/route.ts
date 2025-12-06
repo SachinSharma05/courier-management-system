@@ -134,7 +134,7 @@ export async function GET() {
           const newStatus = latest.status;
 
           /* --- Update consignment --- */
-          await db
+            await db
             .update(consignments)
             .set({
                 lastStatus: newStatus,
@@ -143,31 +143,31 @@ export async function GET() {
                 lastUpdatedOn: new Date(),
                 updatedAt: new Date(),
             })
-            .where(eq(consignments.id, cons.id));
+            .where(eq(consignments.id, String(cons.id)));   // <-- FIX
 
-          /* --- Insert into trackingEvents (dedupe by date/time/action) --- */
-          await db
+          /* --- Insert into trackingEvents --- */
+            await db
             .insert(trackingEvents)
             .values({
-              consignmentId: cons.id,
-              action: newStatus,
-              actionDate: latest.date || null,
-              actionTime: latest.time || null,
-              origin: latest.origin || null,
-              destination: latest.destination || null,
-              remarks: latest.remarks || null,
+                consignmentId: String(cons.id),   // <-- FIX
+                action: newStatus,
+                actionDate: latest.date || null,
+                actionTime: latest.time || null,
+                origin: latest.origin || null,
+                destination: latest.destination || null,
+                remarks: latest.remarks || null,
             })
             .onConflictDoNothing();
 
-          /* --- Insert into trackingHistory (old → new) --- */
-          if (oldStatus !== newStatus) {
+          /* --- Insert trackingHistory (if changed) --- */
+            if (oldStatus !== newStatus) {
             await db.insert(trackingHistory).values({
-              consignmentId: cons.id,
-              oldStatus: oldStatus,
-              newStatus: newStatus,
-              changedAt: new Date(),
-            });
-          }
+            consignmentId: cons.id,
+            oldStatus,
+            newStatus,
+            changedAt: new Date(),
+            } as any);
+            }
 
           totalUpdated++;
         }

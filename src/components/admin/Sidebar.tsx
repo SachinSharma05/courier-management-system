@@ -18,31 +18,25 @@ import {
   ChevronRight,
   Menu,
   LogOut,
+  Boxes,
+  ClipboardList,
+  Building2
 } from "lucide-react";
 
-const SIDEBAR_WIDE = "w-60";
-const SIDEBAR_NARROW = "w-16";
+const SIDEBAR_WIDE = "w-64";
+const SIDEBAR_NARROW = "w-20"; // ✔ Bigger so icons never cut off
 
-interface SidebarProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-export default function Sidebar({
-  sidebarOpen,
-  setSidebarOpen,
-}: SidebarProps) {
+export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const pathname = usePathname();
   const router = useRouter();
 
   const [hovering, setHovering] = useState(false);
-
-  // Expand while hovering OR when pinned by user click
   const isExpanded = sidebarOpen || hovering;
 
+  // open/close sections
   const [dtdcOpen, setDtdcOpen] = useState(false);
-  const [delhiveryOpen, setDelhiveryOpen] = useState(false);
-  const [xpressOpen, setXpressOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [xbOpen, setXbOpen] = useState(false);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -56,40 +50,44 @@ export default function Sidebar({
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
       className={`
-        h-screen fixed left-0 top-0 z-40 bg-white border-r shadow-sm 
-        transition-all duration-200 flex flex-col
+        fixed left-0 top-0 h-screen z-50 backdrop-blur-xl 
+        bg-[rgba(255,255,255,0.75)] border-r border-gray-200
+        shadow-[0_8px_32px_rgba(0,0,0,0.1)]
+        transition-all duration-300 ease-in-out flex flex-col
         ${isExpanded ? SIDEBAR_WIDE : SIDEBAR_NARROW}
       `}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b">
-        {isExpanded && <span className="text-lg font-semibold">Admin</span>}
+      {/* HEADER */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
+        {isExpanded && (
+          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Control Panel
+          </span>
+        )}
 
         <button
           onClick={() => setSidebarOpen((s) => !s)}
-          aria-label="Toggle sidebar"
-          className="p-2 rounded hover:bg-gray-100"
+          className="p-2 rounded-lg hover:bg-white/40 transition"
         >
           <Menu size={20} />
         </button>
       </div>
 
+      {/* NAVIGATION */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
         <SidebarItem
           href="/admin"
           label="Dashboard"
+          icon={<Home size={20} />}
           active={pathname === "/admin"}
-          icon={<Home size={18} />}
           isExpanded={isExpanded}
         />
 
-        {isExpanded && (
-          <div className="text-xs text-gray-400 px-3 uppercase">Providers</div>
-        )}
+        {isExpanded && <SectionLabel label="Providers" />}
 
-        <SidebarSection
+        <ProviderSection
           title="DTDC"
-          icon={<Package size={18} className="text-blue-600" />}
+          icon={<Boxes size={20} className="text-blue-600" />}
           open={dtdcOpen}
           toggle={() => setDtdcOpen(!dtdcOpen)}
           isExpanded={isExpanded}
@@ -97,85 +95,63 @@ export default function Sidebar({
           <SidebarLink
             href="/admin/dtdc/track"
             label="Track Consignment"
-            icon={<Search size={17} />}
+            icon={<Search size={16} />}
             active={pathname.startsWith("/admin/dtdc/track")}
             isExpanded={isExpanded}
           />
           <SidebarLink
             href="/admin/dtdc/pincode"
             label="Pincode Serviceability"
-            icon={<MapPin size={17} />}
+            icon={<MapPin size={16} />}
             active={pathname.startsWith("/admin/dtdc/pincode")}
             isExpanded={isExpanded}
           />
-          <SidebarLink
-            href="/admin/dtdc/label"
-            label="Generate Label"
-            icon={<FileText size={17} />}
-            isExpanded={isExpanded}
-          />
-        </SidebarSection>
+        </ProviderSection>
 
-        <SidebarSection
+        <ProviderSection
           title="Delhivery"
-          icon={<Truck size={18} className="text-orange-500" />}
-          open={delhiveryOpen}
-          toggle={() => setDelhiveryOpen(!delhiveryOpen)}
+          icon={<Truck size={20} className="text-orange-500" />}
+          open={delOpen}
+          toggle={() => setDelOpen(!delOpen)}
           isExpanded={isExpanded}
         >
           <SidebarLink
             href="/admin/delhivery/track"
             label="Track Consignment"
-            icon={<Search size={17} />}
+            icon={<Search size={16} />}
             isExpanded={isExpanded}
           />
-          <SidebarLink
-            href="/admin/delhivery/pincode"
-            label="Pincode Serviceability"
-            icon={<MapPin size={17} />}
-            isExpanded={isExpanded}
-          />
-        </SidebarSection>
+        </ProviderSection>
 
-        <SidebarSection
+        <ProviderSection
           title="XpressBees"
-          icon={<Truck size={18} className="text-yellow-500" />}
-          open={xpressOpen}
-          toggle={() => setXpressOpen(!xpressOpen)}
+          icon={<Building2 size={20} className="text-yellow-500" />}
+          open={xbOpen}
+          toggle={() => setXbOpen(!xbOpen)}
           isExpanded={isExpanded}
         >
           <SidebarLink
             href="/admin/xpress/track"
             label="Track Consignment"
-            icon={<Search size={17} />}
+            icon={<Search size={16} />}
             isExpanded={isExpanded}
           />
-        </SidebarSection>
+        </ProviderSection>
 
         <SidebarItem
           href="/admin/dtdc/clients"
           label="Clients"
-          icon={<Users size={17} />}
+          icon={<Users size={18} />}
           active={pathname.startsWith("/admin/dtdc/clients")}
           isExpanded={isExpanded}
         />
 
-        <SidebarItem
-          href="/admin/providers"
-          label="Providers Setup"
-          icon={<Truck size={17} />}
-          active={pathname.startsWith("/admin/providers")}
-          isExpanded={isExpanded}
-        />
-
-        {isExpanded && (
-          <div className="text-xs text-gray-400 px-3 uppercase">Billing & Finance</div>
-        )}
+        {isExpanded && <SectionLabel label="Billing & Finance" />}
 
         <SidebarItem
           href="/admin/billing"
           label="Billing Overview"
-          icon={<Layers size={17} />}
+          icon={<Layers size={18} />}
           active={pathname.startsWith("/admin/billing")}
           isExpanded={isExpanded}
         />
@@ -183,7 +159,7 @@ export default function Sidebar({
         <SidebarItem
           href="/admin/billing/invoices"
           label="Invoices"
-          icon={<FileText size={17} />}
+          icon={<FileText size={18} />}
           active={pathname.startsWith("/admin/billing/invoices")}
           isExpanded={isExpanded}
         />
@@ -191,60 +167,22 @@ export default function Sidebar({
         <SidebarItem
           href="/admin/finance"
           label="Finance Reports"
-          icon={<Package size={17} />}
+          icon={<ClipboardList size={18} />}
           active={pathname.startsWith("/admin/finance")}
           isExpanded={isExpanded}
         />
 
-        <SidebarItem
-          href="/admin/payments"
-          label="Payments"
-          icon={<MapPin size={17} />}
-          active={pathname.startsWith("/admin/payments")}
-          isExpanded={isExpanded}
-        />
-
-
-        {/* ==================================== */}
-        {/* COMPLAINTS SECTION                   */}
-        {/* ==================================== */}
-        {isExpanded && (
-          <div className="text-xs text-gray-400 px-3 uppercase mt-4">Complaints</div>
-        )}
+        {isExpanded && <SectionLabel label="Complaints" />}
 
         <SidebarItem
           href="/admin/complaints"
           label="All Complaints"
-          icon={<Search size={17} />}
+          icon={<Search size={18} />}
           active={pathname.startsWith("/admin/complaints")}
           isExpanded={isExpanded}
         />
-
-        <SidebarItem
-          href="/admin/complaints?status=open"
-          label="Open"
-          icon={<Search size={17} />}
-          active={pathname.includes("status=open")}
-          isExpanded={isExpanded}
-        />
-
-        <SidebarItem
-          href="/admin/complaints?status=in_progress"
-          label="In Progress"
-          icon={<Search size={17} />}
-          active={pathname.includes("status=in_progress")}
-          isExpanded={isExpanded}
-        />
-
-        <SidebarItem
-          href="/admin/complaints?status=resolved"
-          label="Resolved"
-          icon={<Search size={17} />}
-          active={pathname.includes("status=resolved")}
-          isExpanded={isExpanded}
-        />
-
-        <SidebarItem
+		
+		<SidebarItem
           href="/admin/dtdc/settings"
           label="Settings"
           icon={<Settings size={17} />}
@@ -253,10 +191,12 @@ export default function Sidebar({
         />
       </nav>
 
-      <div className="border-t px-4 py-4 mt-auto">
+      {/* FOOTER */}
+      <div className="border-t border-gray-200 px-4 py-4 mt-auto">
         <button
           onClick={logout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded text-red-600 hover:bg-red-50"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg 
+            text-red-600 hover:bg-red-50 transition"
         >
           <LogOut size={20} />
           {isExpanded && <span>Logout</span>}
@@ -266,26 +206,33 @@ export default function Sidebar({
   );
 }
 
-/* Components */
+/* ---- Sub Components ---- */
 
-function SidebarSection({ title, icon, open, toggle, isExpanded, children }: any) {
+function SectionLabel({ label }: any) {
   return (
-    <div>
+    <div className="px-3 text-[11px] uppercase tracking-wide text-gray-500">
+      {label}
+    </div>
+  );
+}
+
+function ProviderSection({ title, icon, open, toggle, isExpanded, children }: any) {
+  return (
+    <div className="space-y-1">
       <button
         onClick={toggle}
-        className="flex items-center justify-between w-full px-3 py-2 rounded hover:bg-gray-100"
+        className="flex items-center justify-between w-full px-3 py-2 
+        rounded-lg hover:bg-white/40 transition"
       >
-        <div className="flex items-center gap-3">
-          {icon}
-          {isExpanded && <span className="font-medium">{title}</span>}
-        </div>
-
-        {isExpanded &&
-          (open ? <ChevronDown size={17} /> : <ChevronRight size={17} />)}
+        <div className="flex items-center gap-3">{icon}{isExpanded && <span className="font-medium">{title}</span>}</div>
+        {isExpanded && (open ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
       </button>
 
-      {open && isExpanded && (
-        <div className="mt-1 space-y-1 ml-3 border-l pl-4">{children}</div>
+      {/* Always show icons even when collapsed */}
+      {open && (
+        <div className="ml-2 pl-3 border-l border-gray-300 space-y-1 transition-all">
+          {children}
+        </div>
       )}
     </div>
   );
@@ -295,11 +242,9 @@ function SidebarLink({ href, label, icon, active, isExpanded }: any) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded transition ${
-        active
-          ? "bg-blue-50 text-blue-600 font-medium"
-          : "text-gray-700 hover:bg-gray-100"
-      }`}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition 
+        ${active ? "bg-blue-100 text-blue-700 shadow-sm" : "hover:bg-white/60"}
+      `}
     >
       {icon}
       {isExpanded && <span>{label}</span>}
@@ -311,11 +256,9 @@ function SidebarItem({ href, label, icon, active, isExpanded }: any) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded transition ${
-        active
-          ? "bg-blue-50 text-blue-600 font-medium"
-          : "text-gray-700 hover:bg-gray-100"
-      }`}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition 
+        ${active ? "bg-blue-100 text-blue-700 shadow-sm" : "hover:bg-white/60"}
+      `}
     >
       {icon}
       {isExpanded && <span>{label}</span>}

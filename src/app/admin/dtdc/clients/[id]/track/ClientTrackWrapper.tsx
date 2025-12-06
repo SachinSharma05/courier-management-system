@@ -197,7 +197,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
       const chunks = chunkArray(loadedAwbs, DEFAULT_BATCH_SIZE);
 
       for (const c of chunks) {
-        const res = await fetch("/api/dtdc/track", {
+        const res = await fetch(`/api/admin/clients/${clientId}/track`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -1,47 +1,25 @@
-"use client";
+import React from "react";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+export default function LeadsChart({ title, data = [] }: { title: string; data: { date: string; value: number; color?: string }[] }) {
+  const enriched = data.map(d => ({
+    ...d,
+    color: d.color ?? (d.value === 0 ? "#cbd5e1" : d.value < 20 ? "#f59e0b" : d.value < 60 ? "#3b82f6" : "#10b981")
+  }));
 
-export default function LeadsChart({
-  title,
-  data,
-}: {
-  title: string;
-  data: { date: string; value: number }[];
-}) {
   return (
-    <div className="bg-white border rounded-xl shadow-sm p-6">
-      <div className="flex justify-between mb-4">
-        <h3 className="text-xl font-semibold">{title}</h3>
-
-        <div className="flex items-center gap-3 text-sm">
-          <select className="border rounded px-2 py-1">
-            <option>India</option>
-            <option>Canada</option>
-          </select>
-
-          <select className="border rounded px-2 py-1">
-            <option>This Month</option>
-            <option>This Week</option>
-            <option>Today</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="w-full h-72">
+    <div>
+      <h3 className="text-lg font-semibold mb-3">{title}</h3>
+      <div style={{ width: "100%", height: 220 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip cursor={{ fill: "rgba(0,0,0,0.05)" }} />
-            <Bar dataKey="value" fill="#000" radius={[4, 4, 0, 0]} />
+          <BarChart data={enriched}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="value">
+              {enriched.map((entry, i) => <Cell key={`c-${i}`} fill={entry.color} />)}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

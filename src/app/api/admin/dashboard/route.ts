@@ -4,6 +4,9 @@ import { db } from "@/app/db/postgres";
 import { users, consignments, complaints } from "@/app/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 
+export const dynamic = "force-static";
+export const revalidate = 120;
+
 /* ================================================================
    HELPER: FETCH PROVIDER STATISTICS
    - Counts total consignments for a provider

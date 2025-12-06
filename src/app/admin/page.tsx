@@ -8,7 +8,6 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { providerIcon } from "@/components/admin/provider-icons"; // create below
-import LeadsChart from "@/components/admin/LeadsChart"; // updated below
 
 /* -------------------------
    Small helper components
@@ -70,6 +69,7 @@ export default function PremiumDashboard() {
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
+  const [retail, setRetail] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
@@ -89,6 +89,7 @@ export default function PremiumDashboard() {
       setPie(json.pie ?? { delivered: 0, pending: 0, rto: 0 });
       setTrend(json.trend ?? []);
       setRecent(json.recent ?? []);
+      setRetail(json.retailBookings ?? 0);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load dashboard");
@@ -147,9 +148,9 @@ export default function PremiumDashboard() {
             </Card>
 
             <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
-              <div className="text-xs text-gray-500">Units Sold</div>
-              <div className="mt-2"><Counter value={(stats.dtdc?.delivered || 0) + (stats.delh?.delivered||0) + (stats.xb?.delivered || 0)} /></div>
-              <div className="text-xs text-gray-400 mt-1">Delivered units</div>
+              <div className="text-xs text-gray-500">Retail Bookings</div>
+              <div className="mt-2"><Counter value={(retail)} /></div>
+              <div className="text-xs text-gray-400 mt-1">Counter Booking</div>
             </Card>
 
             <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">

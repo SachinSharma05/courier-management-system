@@ -193,6 +193,14 @@ export async function GET(req: Request) {
       .orderBy(desc(consignments.lastUpdatedOn))
       .limit(15);
 
+      /* ------------------------------------------------------------
+       7) RETAIL Consignments
+    ------------------------------------------------------------ */
+      const retailBookings = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(consignments)
+      .where(eq(consignments.client_id, 1));
+
     /* ------------------------------------------------------------
        FINAL RESPONSE OBJECT
     ------------------------------------------------------------ */
@@ -215,7 +223,9 @@ export async function GET(req: Request) {
       trend: trendData,
 
       // Recent consignments
-      recent
+      recent,
+
+      retailBookings: Number(retailBookings[0].count),
     });
 
   } catch (error: any) {

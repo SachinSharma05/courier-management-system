@@ -10,15 +10,8 @@ import {
 import { decrypt } from "@/app/lib/crypto/encryption";
 import { eq, inArray, sql } from "drizzle-orm";
 
-/**
- * Implementation notes:
- * - DTDC accepts one AWB per request (see DTDC doc). We process AWBs in batches of 25
- *   purely to limit concurrency. Each AWB is requested individually in parallel.
- *   Reference: DTDC REST Tracking API doc. :contentReference[oaicite:1]{index=1}
- */
-
-// DTDC endpoint
-const DTDC_URL = "https://blktracksvc.dtdc.com/dtdc-api/rest/JSONCnTrk/getTrackDetails";
+const DTDC_URL =
+  "https://blktracksvc.dtdc.com/dtdc-api/rest/JSONCnTrk/getTrackDetails";
 
 // helpers
 function chunk<T>(arr: T[], size = 25): T[][] {
@@ -109,21 +102,34 @@ export async function POST(req: Request) {
     const groups: { code: string; awbs: string[] }[] = body?.groups ?? [];
 
     if (!Array.isArray(groups) || groups.length === 0) {
-      return NextResponse.json({ ok: false, error: "No groups provided" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "No groups provided" },
+        { status: 400 }
+      );
     }
 
     const finalResults: any[] = [];
 
     for (const group of groups) {
       const code = (group.code ?? "").toString().trim();
-      const awbs = (group.awbs ?? []).map((a) => a.toString().trim()).filter(Boolean);
+      const awbs = (group.awbs ?? [])
+        .map((a) => a.toString().trim())
+        .filter(Boolean);
 
       if (!awbs.length) {
         finalResults.push({ code, message: "no_awbs", total: 0 });
         continue;
       }
 
-      // Resolve clientId by searching clientCredentials where env_key = DTDC_CUSTOMER_CODE
+      // -----------------------------
+      // 🔵 IF549 — Retail Special Case
+      // -----------------------------
+      let isRetail = false;
+      if (code.toUpperCase() === "IF549") {
+        isRetail = true;
+      }
+
+      // Resolve clientId normally
       const credsRows = await db
         .select()
         .from(clientCredentials)
@@ -137,21 +143,34 @@ export async function POST(req: Request) {
           break;
         }
       }
-      clientId = clientId ?? 1; // fallback to admin/retail
+      clientId = clientId ?? 1; // fallback (RETAIL)
 
-      // Load DTDC token + customer code for client
-      const creds = await loadDtdcCredentials(clientId);
-      if (!creds.token || !creds.customerCode) {
-        finalResults.push({ code, clientId, error: "missing_dtdc_credentials" });
-        continue;
+      // -----------------------------
+      // Retail: SKIP DTDC credential loading
+      // -----------------------------
+      let creds: { token: string | undefined; customerCode: string | undefined } = {
+        token: undefined,
+        customerCode: undefined,
+      };
+
+      if (!isRetail) {
+        creds = await loadDtdcCredentials(clientId);
+        if (!creds.token || !creds.customerCode) {
+          finalResults.push({
+            code,
+            clientId,
+            error: "missing_dtdc_credentials",
+          });
+          continue;
+        }
       }
 
-      // Prepare arrays for bulk DB operations
+      // Prepare arrays
       const bulkConsignmentRows: any[] = [];
       const bulkEventRows: any[] = [];
       const bulkHistoryRows: any[] = [];
 
-      // Fetch existing consignments once (for prior status)
+      // Fetch existing consignments to compare previous status
       const existingRows = await db
         .select({
           awb: consignments.awb,
@@ -163,12 +182,33 @@ export async function POST(req: Request) {
 
       const existingMap = new Map(existingRows.map((r: any) => [r.awb, r]));
 
-      // Chunk into batches of 25 (controls concurrency)
+      // Chunk into batches of 25
       const batches = chunk(awbs, 25);
 
       for (const batch of batches) {
-        // For a batch, we will issue parallel fetches (one per AWB)
         const promises = batch.map(async (awb) => {
+          // --------------------------------------------
+          // 🔵 RETAIL (IF549) — NO TRACKING
+          // --------------------------------------------
+          if (isRetail) {
+            const prev = existingMap.get(awb);
+            bulkConsignmentRows.push({
+              awb,
+              client_id: 1, // always retail
+              providers: ["dtdc"],
+              origin: prev?.origin ?? null,
+              destination: prev?.destination ?? null,
+              bookedOn: prev?.bookedOn ?? null,
+              lastUpdatedOn: prev?.lastUpdatedOn ?? null,
+              lastStatus: "RETAIL",
+              updatedAt: sql`NOW()`,
+            });
+            return { awb, status: "retail_saved" };
+          }
+
+          // --------------------------------------------
+          // Normal DTDC API Tracking (unchanged)
+          // --------------------------------------------
           try {
             const res = await fetch(DTDC_URL, {
               method: "POST",
@@ -192,12 +232,9 @@ export async function POST(req: Request) {
               return { awb, error: "invalid_json", raw: text };
             }
 
-            // parse using the single-awb parser
             const parsed = parseDTDCResponse(json);
 
             if (parsed.error) {
-              // If error indicates NO DATA FOUND, we still insert a consignment row (Option 1)
-              // DTDC uses errorDetails / strError for no data. We'll treat all failures as "NO DATA FOUND" for visibility.
               const prev = existingMap.get(awb);
               bulkConsignmentRows.push({
                 awb,
@@ -213,14 +250,12 @@ export async function POST(req: Request) {
               return { awb, error: parsed.error };
             }
 
-            // Successful parse
             const hdr = parsed.header!;
             const timeline = parsed.timeline;
 
             const prev = existingMap.get(awb);
             const prevStatus = prev?.lastStatus ?? null;
 
-            // push consignment upsert payload
             bulkConsignmentRows.push({
               awb,
               client_id: clientId,
@@ -233,7 +268,6 @@ export async function POST(req: Request) {
               updatedAt: sql`NOW()`,
             });
 
-            // push events (raw timeline entries)
             for (const t of timeline) {
               bulkEventRows.push({
                 awb,
@@ -246,7 +280,6 @@ export async function POST(req: Request) {
               });
             }
 
-            // push history if status changed
             const newStatus = hdr.currentStatus ?? null;
             if (prevStatus !== newStatus) {
               bulkHistoryRows.push({
@@ -258,7 +291,6 @@ export async function POST(req: Request) {
 
             return { awb, parsed: hdr };
           } catch (err: any) {
-            // network or unexpected error -> record as NO DATA FOUND (visible)
             const prev = existingMap.get(awb);
             bulkConsignmentRows.push({
               awb,
@@ -275,12 +307,10 @@ export async function POST(req: Request) {
           }
         });
 
-        // Run the batch in parallel and wait
         await Promise.allSettled(promises);
-        // NOTE: results from the promises are only used for debugging; DB rows were collected in arrays.
       }
 
-      // ---------- BULK UPSERT CONSIGNMENTS ----------
+      // ----- UPSERT CONSIGNMENTS (unchanged)
       if (bulkConsignmentRows.length > 0) {
         await db
           .insert(consignments)
@@ -300,7 +330,7 @@ export async function POST(req: Request) {
           });
       }
 
-      // Fetch inserted/updated consignment IDs
+      // Retail will have no events/history → skip gracefully
       const allCons = await db
         .select({ awb: consignments.awb, id: consignments.id })
         .from(consignments)
@@ -308,63 +338,52 @@ export async function POST(req: Request) {
 
       const idMap = new Map(allCons.map((r: any) => [r.awb, r.id]));
 
-      // ---------- BULK INSERT EVENTS (skip orphans & fix types) ----------
-        const eventInsertValues = bulkEventRows
+      const eventInsertValues = bulkEventRows
         .map((e) => {
-            const cid = idMap.get(e.awb);
-            if (!cid) return null; // orphan -> skip
-            return {
-            consignmentId: String(cid), // ensure a string (Drizzle typing)
+          const cid = idMap.get(e.awb);
+          if (!cid) return null;
+          return {
+            consignmentId: String(cid),
             action: e.action,
             actionDate: e.actionDate,
             actionTime: e.actionTime,
             origin: e.origin,
             destination: e.destination,
             remarks: e.remarks,
-            };
+          };
         })
-        // type guard: tell TS these are not null
-        .filter((v): v is {
-            consignmentId: string;
-            action: any;
-            actionDate: any;
-            actionTime: any;
-            origin: any;
-            destination: any;
-            remarks: any;
-        } => v !== null);
+        .filter((v): v is any => v !== null);
 
-        if (eventInsertValues.length > 0) {
-        await db.insert(trackingEvents).values(eventInsertValues).onConflictDoNothing();
-        }
+      if (eventInsertValues.length > 0) {
+        await db
+          .insert(trackingEvents)
+          .values(eventInsertValues)
+          .onConflictDoNothing();
+      }
 
-        // ---------- BULK INSERT HISTORY (skip orphans & fix types) ----------
-        const historyInsertValues = bulkHistoryRows
+      const historyInsertValues = bulkHistoryRows
         .map((h) => {
-            const cid = idMap.get(h.awb);
-            if (!cid) return null;
-            return {
+          const cid = idMap.get(h.awb);
+          if (!cid) return null;
+          return {
             consignmentId: String(cid),
             oldStatus: h.oldStatus,
             newStatus: h.newStatus,
-            };
+          };
         })
-        .filter((v): v is { consignmentId: string; oldStatus: any; newStatus: any } => v !== null);
+        .filter((v): v is any => v !== null);
 
-        if (historyInsertValues.length > 0) {
+      if (historyInsertValues.length > 0) {
         await db.insert(trackingHistory).values(historyInsertValues);
-        }
+      }
 
-      // push summary for this group
+      // Summary
       finalResults.push({
         code,
         clientId,
+        isRetail,
         totalAwbs: awbs.length,
-        batches: batches.length,
-        consignmentsPrepared: bulkConsignmentRows.length,
-        eventsPrepared: bulkEventRows.length,
-        historyPrepared: bulkHistoryRows.length,
-        consignmentsUpserted: bulkConsignmentRows.length > 0 ? bulkConsignmentRows.length : 0,
+        consignmentsUpserted: bulkConsignmentRows.length,
         eventsInserted: eventInsertValues.length,
         historyInserted: historyInsertValues.length,
       });
@@ -373,6 +392,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, groups: finalResults });
   } catch (err: any) {
     console.error("UPLOAD PROCESS ERROR:", err);
-    return NextResponse.json({ ok: false, error: err?.message ?? String(err) }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? String(err) },
+      { status: 500 }
+    );
   }
 }

@@ -124,7 +124,7 @@ export default function UploadPage() {
 
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 flex gap-2 items-center">
-        <Link href="/admin/dashboard" className="hover:underline">Dashboard</Link>
+        <Link href="/admin" className="hover:underline">Dashboard</Link>
         <span>/</span>
         <Link href="/admin/dtdc/clients" className="hover:underline">Clients</Link>
         <span>/</span>

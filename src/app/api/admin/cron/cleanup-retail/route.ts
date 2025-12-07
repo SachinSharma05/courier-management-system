@@ -7,13 +7,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
+    cutoff.setDate(cutoff.getDate() - 1);
 
-    // 1. Fetch delivered consignments older than 10 days
+    // 1. Fetch delivered consignments older than 1 days
     const { rows } = await db.execute(sql`
       SELECT id
       FROM consignments
-      WHERE LOWER(last_status) LIKE '%deliver%'
+      WHERE LOWER(last_status) LIKE '%reta%'
       AND last_updated_on < ${cutoff}
       LIMIT 500
     `);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import dayjs from "dayjs";
 import toast from "react-hot-toast";
@@ -9,7 +9,6 @@ import { useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
@@ -39,7 +38,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { Upload, RefreshCw, DownloadCloud, Loader2 } from "lucide-react";
+import { RefreshCw, DownloadCloud } from "lucide-react";
 
 import { generateCustomLabel } from "@/app/lib/pdf/generateCustomLabel";
 import { mergePDFs } from "@/app/lib/pdf/mergePDFs";
@@ -53,11 +52,6 @@ const DEFAULT_BATCH_SIZE = 25;
 
 export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
-  const [selectedFile, setSelectedFile] = useState("");
-  const [loadedAwbs, setLoadedAwbs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
-
   // table + paging + filters
   const [rows, setRows] = useState<ConsignmentRow[]>([]);
   const [page, setPage] = useState(1);
@@ -70,6 +64,8 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
   const [tatFilter, setTatFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  const [loading, setLoading] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -154,99 +150,6 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
   useEffect(() => {
   fetchPage();
 }, [fetchPage]);
-
-  // ---------- helpers ----------
-  function chunkArray<T>(arr: T[], size: number) {
-    const out: T[][] = [];
-    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-    return out;
-  }
-
-  // ---------- file upload ----------
-  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (ext !== "xlsx" && ext !== "xls") {
-      toast.error("Only .xlsx/.xls allowed");
-      return;
-    }
-    setSelectedFile(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const wb = XLSX.read(ev.target?.result as ArrayBuffer, { type: "array" });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const arr: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-      const awbs = arr.map((r) => (r[0] ?? "").toString().trim()).filter(Boolean);
-      const unique = Array.from(new Set(awbs));
-      setLoadedAwbs(unique);
-      setProgress({ done: 0, total: unique.length });
-      toast.success(`${unique.length} AWBs loaded`);
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  // ---------- batch tracking ----------
-  async function runBatchTracking() {
-    if (!loadedAwbs.length) return toast.error("Upload excel AWBs first");
-
-    setLoading(true);
-    setProgress({ done: 0, total: loadedAwbs.length });
-
-    try {
-      const chunks = chunkArray(loadedAwbs, DEFAULT_BATCH_SIZE);
-
-      for (const c of chunks) {
-        const res = await fetch(`/api/admin/clients/${clientId}/track`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            consignments: c,
-            clientId: clientId,       // 🔥 added
-            provider: "dtdc",         // 🔥 added
-          }),
-        });
-
-        const json = await res.json();
-        if (json?.error) toast.error(json.error);
-
-        setProgress((p) => ({
-          ...p,
-          done: Math.min(p.total, p.done + c.length),
-        }));
-
-        await fetchPage(true);
-      }
-
-      toast.success("Batch tracking completed");
-    } catch (e) {
-      console.error(e);
-      toast.error("Batch tracking failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // ---------- retry single ----------
-  async function retrySingle(awb: string) {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/dtdc/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consignments: [awb] }),
-      });
-      const json = await res.json();
-      if (json?.error) toast.error(json.error);
-      else toast.success("Retry completed");
-      await fetchPage(true);
-    } catch (e) {
-      console.error(e);
-      toast.error("Retry failed");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   // ---------- export ----------
   function exportToExcel(rowsToExport: ConsignmentRow[], filename = "dtdc-tracking") {
@@ -387,347 +290,346 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
     }
   }, []);
 
+  // refresh pending tracking
+  async function refreshTracking() {
+  setLoading(true);
+  try {
+    const res = await fetch(`/api/admin/dtdc/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        clientId,
+        provider: "dtdc"
+      })
+    });
+
+    const json = await res.json();
+
+    if (!res.ok || json.error) {
+      toast.error(json.error || "Failed to refresh tracking");
+    } else {
+      toast.success("Tracking updated");
+    }
+
+    await fetchPage(true);
+    toast.success("Tracking updated");
+  } catch (e) {
+    toast.error("Failed to refresh");
+  } finally {
+    setLoading(false);
+  }
+}
+
+
   // ---------- UI ----------
   return (
-    <div className="space-y-4 px-0 md:px-2 lg:px-0 py-0">
-      {/* header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Track Consignments</h1>
-          <p className="text-sm text-muted-foreground mt-1">Search, filter, manage, export & analyze your tracking data.</p>
+    <div className={loading ? "pointer-events-none opacity-50" : ""}>
+      <div className="space-y-2 px-0 md:px-2 lg:px-2 py-0">
+        {/* header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Track Consignments</h1>
+            <p className="text-sm text-muted-foreground mt-1">Search, filter, manage, export & analyze your tracking data.</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={refreshTracking}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Click me to refresh status
+            </Button>
+
+            <Button variant="outline" onClick={() => exportToExcel(rows)}>
+              <DownloadCloud className="mr-2 h-4 w-4" /> Export All
+            </Button>
+
+            <Button variant="default" onClick={() => exportToExcel(rows /* filtered rows already */ , "filtered-tracking")}>
+              Export Filtered
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={() => { setPage(1); fetchPage(true); }}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-          </Button>
+        {/* filters */}
+        <Card className="shadow-sm border">
+          <CardContent className="py-0 flex flex-wrap gap-4 items-center">
+            <Input placeholder="Search AWB" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-56" />
 
-          <Button variant="outline" onClick={() => exportToExcel(rows)}>
-            <DownloadCloud className="mr-2 h-4 w-4" /> Export All
-          </Button>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="in transit">In Transit</SelectItem>
+                <SelectItem value="out for delivery">Out For Delivery</SelectItem>
+                <SelectItem value="attempted">Attempted</SelectItem>
+                <SelectItem value="held">Held Up</SelectItem>
+                <SelectItem value="rto">RTO</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Button variant="secondary" onClick={() => exportToExcel(rows /* filtered rows already */ , "filtered-tracking")}>
-            Export Filtered
-          </Button>
-        </div>
-      </div>
-
-      {/* upload + selects */}
-      <Card className="shadow-sm border">
-        <CardContent className="py-0">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="ml-auto flex items-center gap-3">
-              <input id="excelUpload" type="file" accept=".xlsx,.xls" onChange={handleFileInput} className="hidden" />
-              <Button variant="outline" onClick={() => document.getElementById("excelUpload")?.click()}>
-                <Upload className="mr-2 h-4 w-4" /> Upload Excel
-              </Button>
-
-              <Button onClick={runBatchTracking} disabled={loading || !loadedAwbs.length}>
-                {loading ? <><Loader2 className="animate-spin mr-2" />Tracking...</> : "Track (Batched)"}
-              </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">From</span>
+              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+              <span className="text-sm text-muted-foreground">To</span>
+              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
             </div>
-          </div>
 
-          {/* progress */}
-          <div className="mt-4">
-            <Progress value={progress.total ? Math.round((progress.done / progress.total) * 100) : 0} />
-            <div className="text-xs text-muted-foreground mt-2">Progress: {progress.done}/{progress.total}</div>
-          </div>
-        </CardContent>
-      </Card>
+            <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="TAT" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="very critical">Very Critical</SelectItem>
+              </SelectContent>
+            </Select>
 
-      {/* filters */}
-      <Card className="shadow-sm border">
-        <CardContent className="py-0 flex flex-wrap gap-4 items-center">
-          <Input placeholder="Search AWB" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-56" />
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Page Size</span>
+              <Input type="number" className="w-20" value={pageSize} onChange={(e) => { setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE))); setPage(1); }} />
+            </div>
+          </CardContent>
+        </Card>
 
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="in transit">In Transit</SelectItem>
-              <SelectItem value="out for delivery">Out For Delivery</SelectItem>
-              <SelectItem value="attempted">Attempted</SelectItem>
-              <SelectItem value="held">Held Up</SelectItem>
-              <SelectItem value="rto">RTO</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* table card (fixed height wrapper) */}
+        <Card className="shadow-sm border">
+          <CardContent className="p-0">
+          {/* Outer wrapper must lock height AND prevent ScrollArea from expanding */}
+          <div className="h-[90vh] flex flex-col overflow-hidden">
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">From</span>
-            <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
-            <span className="text-sm text-muted-foreground">To</span>
-            <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
-          </div>
+            {/* Header row does NOT scroll */}
+            <div className="shrink-0">
+              <Table className="text-sm">
+                <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                  <TableRow>
+                    {/* --- Sortable columns --- */}
+                  {[
+                    "AWB",
+                    "Status",
+                    "Booked",
+                    "Last Update",
+                    "Origin",
+                    "Destination",
+                  ].map((col) => (
+                    <TableHead
+                      key={col}
+                      className="cursor-pointer select-none hover:bg-muted/40"
+                      onClick={() => {
+                        setRows([...rows].sort((a: any, b: any) =>
+                          (a[colKey(col)] ?? "").localeCompare(b[colKey(col)] ?? "")
+                        ));
+                      }}
+                    >
+                      {col} ▲▼
+                    </TableHead>
+                  ))}
 
-          <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-40"><SelectValue placeholder="TAT" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="warning">Warning</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
-              <SelectItem value="very critical">Very Critical</SelectItem>
-            </SelectContent>
-          </Select>
+                  <TableHead>TAT</TableHead>
+                  <TableHead>Movement</TableHead>
+                  <TableHead>Timeline</TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
+                  <TableHead></TableHead>
 
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Page Size</span>
-            <Input type="number" className="w-20" value={pageSize} onChange={(e) => { setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE))); setPage(1); }} />
-          </div>
-        </CardContent>
-      </Card>
+                  </TableRow>
+                </TableHeader>
+              </Table>
+            </div>
 
-      {/* table card (fixed height wrapper) */}
-      <Card className="shadow-sm border">
-        <CardContent className="p-0">
-        {/* Outer wrapper must lock height AND prevent ScrollArea from expanding */}
-        <div className="h-[90vh] flex flex-col overflow-hidden">
-
-          {/* Header row does NOT scroll */}
-          <div className="shrink-0">
-            <Table className="text-sm">
-              <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                <TableRow>
-                  {/* --- Sortable columns --- */}
-                {[
-                  "AWB",
-                  "Status",
-                  "Booked",
-                  "Last Update",
-                  "Origin",
-                  "Destination",
-                ].map((col) => (
-                  <TableHead
-                    key={col}
-                    className="cursor-pointer select-none hover:bg-muted/40"
-                    onClick={() => {
-                      setRows([...rows].sort((a: any, b: any) =>
-                        (a[colKey(col)] ?? "").localeCompare(b[colKey(col)] ?? "")
-                      ));
-                    }}
-                  >
-                    {col} ▲▼
-                  </TableHead>
-                ))}
-
-                <TableHead>TAT</TableHead>
-                <TableHead>Movement</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead></TableHead>
-                <TableHead></TableHead>
-                <TableHead></TableHead>
-
-                </TableRow>
-              </TableHeader>
-            </Table>
-          </div>
-
-          {/* Scrollable body */}
-          <ScrollArea className="flex-1 overflow-auto">
-            <Table className="text-sm">
-              <TableBody>
-                {rows.length === 0 && (
-                  <TR>
-                    <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
-                      {isFetching ? "Loading..." : "No results found"}
-                    </TableCell>
-                  </TR>
-                )}
-
-                {rows.map((r) => {
-                  const delivered = ((r.last_status ?? "") + "").toLowerCase().includes("deliv");
-                  const tat = computeTATLocal(r);
-                  const move = computeMovementLocal(r);
-
-                  return (
-                    <TR key={r.awb} className={`${delivered ? "bg-green-50" : ""} hover:bg-muted/40`}>
-                      <TableCell className="font-medium">{r.awb}</TableCell>
-                      <TableCell>{r.last_status ?? "-"}</TableCell>
-                      <TableCell>{r.booked_on ?? "-"}</TableCell>
-                      <TableCell>{r.last_updated_on ?? "-"}</TableCell>
-                      <TableCell>{r.origin ?? "-"}</TableCell>
-                      <TableCell>{r.destination ?? "-"}</TableCell>
-
-                      <TableCell>{tatBadge(delivered ? "Delivered" : tat, delivered)}</TableCell>
-                      <TableCell>{moveBadge(delivered ? "Delivered" : move, delivered)}</TableCell>
-
-                      {/* Timeline */}
-                      <TableCell>
-                        <Sheet>
-                          <SheetTrigger asChild>
-                            <button className="text-sm underline text-primary">View</button>
-                          </SheetTrigger>
-
-                          <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
-                            <SheetHeader>
-                              <SheetTitle>Timeline — {r.awb}</SheetTitle>
-                              <SheetDescription>Complete movement history</SheetDescription>
-                            </SheetHeader>
-
-                            <div className="mt-6 max-h-[75vh] overflow-y-auto pr-2 space-y-6">
-                              {r.timeline?.length ? (
-                                r.timeline.map((t: any, i: number) => (
-                                  <div key={i} className="border-b pb-4">
-                                    <div className="text-xs text-muted-foreground">
-                                      {t.actionDate} {t.actionTime}
-                                    </div>
-                                    <div className="font-semibold">{t.action}</div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {t.origin || t.destination}
-                                    </div>
-                                    {t.remarks && (
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        {t.remarks}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))
-                              ) : (
-                                <p className="text-muted-foreground">No timeline available.</p>
-                              )}
-                            </div>
-                          </SheetContent>
-                        </Sheet>
+            {/* Scrollable body */}
+            <ScrollArea className="flex-1 overflow-auto">
+              <Table className="text-sm">
+                <TableBody>
+                  {rows.length === 0 && (
+                    <TR>
+                      <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
+                        {isFetching ? "Loading..." : "No results found"}
                       </TableCell>
+                    </TR>
+                  )}
 
-                      {/* PDF */}
-                      <TableCell>
-                        <Button size="sm" variant="outline" onClick={() => downloadMergedLabel(r)}>
-                          PDF
-                        </Button>
-                      </TableCell>
+                  {rows.map((r) => {
+                    const delivered = ((r.last_status ?? "") + "").toLowerCase().includes("deliv");
+                    const tat = computeTATLocal(r);
+                    const move = computeMovementLocal(r);
 
-                      {/* Details */}
-                      <TableCell>
-                        <Sheet>
-                          <SheetTrigger asChild>
-                            <Button size="sm" variant="secondary">Details</Button>
-                          </SheetTrigger>
+                    return (
+                      <TR key={r.awb} className={`${delivered ? "bg-green-50" : ""} hover:bg-muted/40`}>
+                        <TableCell className="font-medium">{r.awb}</TableCell>
+                        <TableCell>{r.last_status ?? "-"}</TableCell>
+                        <TableCell>{r.booked_on ?? "-"}</TableCell>
+                        <TableCell>{r.last_updated_on ?? "-"}</TableCell>
+                        <TableCell>{r.origin ?? "-"}</TableCell>
+                        <TableCell>{r.destination ?? "-"}</TableCell>
 
-                          <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
-                            <SheetHeader>
-                              <SheetTitle>Consignment Details — {r.awb}</SheetTitle>
-                              <SheetDescription>Complete shipment details</SheetDescription>
-                            </SheetHeader>
+                        <TableCell>{tatBadge(delivered ? "Delivered" : tat, delivered)}</TableCell>
+                        <TableCell>{moveBadge(delivered ? "Delivered" : move, delivered)}</TableCell>
 
-                            <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-4 pr-2">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div><strong>Status:</strong> {r.last_status}</div>
-                                <div><strong>Booked:</strong> {r.booked_on}</div>
-                                <div><strong>Last Update:</strong> {r.last_updated_on}</div>
-                                <div><strong>Origin:</strong> {r.origin}</div>
-                                <div><strong>Destination:</strong> {r.destination}</div>
-                              </div>
+                        {/* Timeline */}
+                        <TableCell>
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <button className="text-sm underline text-primary">View</button>
+                            </SheetTrigger>
 
-                              <div>
-                                <h4 className="text-lg font-semibold mb-3">Timeline</h4>
+                            <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
+                              <SheetHeader>
+                                <SheetTitle>Timeline — {r.awb}</SheetTitle>
+                                <SheetDescription>Complete movement history</SheetDescription>
+                              </SheetHeader>
+
+                              <div className="mt-6 max-h-[75vh] overflow-y-auto pr-2 space-y-6">
                                 {r.timeline?.length ? (
-                                  <div className="space-y-4">
-                                    {r.timeline.map((t: any, i: number) => (
-                                      <div key={i} className="border-b pb-3">
-                                        <div className="text-xs text-muted-foreground">
-                                          {t.actionDate} {t.actionTime}
-                                        </div>
-                                        <div className="font-medium">{t.action}</div>
-                                        <div className="text-sm text-muted-foreground">
-                                          {t.origin || t.destination}
-                                        </div>
+                                  r.timeline.map((t: any, i: number) => (
+                                    <div key={i} className="border-b pb-4">
+                                      <div className="text-xs text-muted-foreground">
+                                        {t.actionDate} {t.actionTime}
                                       </div>
-                                    ))}
-                                  </div>
+                                      <div className="font-semibold">{t.action}</div>
+                                      <div className="text-sm text-muted-foreground">
+                                        {t.origin || t.destination}
+                                      </div>
+                                      {t.remarks && (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                          {t.remarks}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))
                                 ) : (
                                   <p className="text-muted-foreground">No timeline available.</p>
                                 )}
                               </div>
-                            </div>
-                          </SheetContent>
-                        </Sheet>
-                      </TableCell>
+                            </SheetContent>
+                          </Sheet>
+                        </TableCell>
 
-                      {/* Retry */}
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={delivered}
-                          onClick={() => retrySingle(r.awb)}
-                        >
-                          Retry
-                        </Button>
-                      </TableCell>
-                    </TR>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                        {/* PDF */}
+                        <TableCell>
+                          <Button size="sm" variant="outline" onClick={() => downloadMergedLabel(r)}>
+                            PDF
+                          </Button>
+                        </TableCell>
 
-        </div>
-      </CardContent>
-      </Card>
+                        {/* Details */}
+                        <TableCell>
+                          <Sheet>
+                            <SheetTrigger asChild>
+                              <Button size="sm" variant="secondary">Details</Button>
+                            </SheetTrigger>
 
-      {/* Pagination wrapper (OUTSIDE the Card containing the ScrollArea) */}
-      <div className="mt-6 flex items-center justify-between w-full">
-        <div className="text-sm text-muted-foreground">
-          Showing {rows.length} of {totalCount}
-        </div>
+                            <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
+                              <SheetHeader>
+                                <SheetTitle>Consignment Details — {r.awb}</SheetTitle>
+                                <SheetDescription>Complete shipment details</SheetDescription>
+                              </SheetHeader>
 
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage(1) }}>
-            First
-          </Button>
+                              <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-4 pr-2">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                  <div><strong>Status:</strong> {r.last_status}</div>
+                                  <div><strong>Booked:</strong> {r.booked_on}</div>
+                                  <div><strong>Last Update:</strong> {r.last_updated_on}</div>
+                                  <div><strong>Origin:</strong> {r.origin}</div>
+                                  <div><strong>Destination:</strong> {r.destination}</div>
+                                </div>
 
-          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage((p) => Math.max(1, p - 1)) }}>
-            Prev
-          </Button>
+                                <div>
+                                  <h4 className="text-lg font-semibold mb-3">Timeline</h4>
+                                  {r.timeline?.length ? (
+                                    <div className="space-y-4">
+                                      {r.timeline.map((t: any, i: number) => (
+                                        <div key={i} className="border-b pb-3">
+                                          <div className="text-xs text-muted-foreground">
+                                            {t.actionDate} {t.actionTime}
+                                          </div>
+                                          <div className="font-medium">{t.action}</div>
+                                          <div className="text-sm text-muted-foreground">
+                                            {t.origin || t.destination}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-muted-foreground">No timeline available.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </SheetContent>
+                          </Sheet>
+                        </TableCell>
+                      </TR>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
 
-          {pageNumbers[0] > 1 && <span className="px-1">…</span>}
+          </div>
+        </CardContent>
+        </Card>
 
-          {pageNumbers.map((p) => (
-            <button
-              key={p}
-              onClick={() => { setPage(p); fetchPage(true); }}
-              className={`px-3 py-1 rounded ${p === page ? "bg-primary text-white" : "bg-white border"}`}
-            >
-              {p}
-            </button>
-          ))}
+        {/* Pagination wrapper (OUTSIDE the Card containing the ScrollArea) */}
+        <div className="mt-6 flex items-center justify-between w-full">
+          <div className="text-sm text-muted-foreground">
+            Showing {rows.length} of {totalCount}
+          </div>
 
-          {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage(1) }}>
+              First
+            </Button>
 
-          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage((p) => Math.min(totalPages, p + 1)) }}>
-            Next
-          </Button>
+            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage((p) => Math.max(1, p - 1)) }}>
+              Prev
+            </Button>
 
-          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage(totalPages) }}>
-            Last
-          </Button>
+            {pageNumbers[0] > 1 && <span className="px-1">…</span>}
 
-          {/* quick jump */}
-          <div className="ml-4 flex items-center gap-2">
-            <span className="text-sm">Jump</span>
-            <Input
-              type="number"
-              min={1}
-              max={totalPages}
-              className="w-20"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const v = Number((e.target as HTMLInputElement).value || 1);
-                  const pg = Math.max(1, Math.min(totalPages, v));
-                  setPage(pg);
-                  fetchPage(true);
-                }
-              }}
-            />
+            {pageNumbers.map((p) => (
+              <button
+                key={p}
+                onClick={() => { setPage(p); fetchPage(true); }}
+                className={`px-3 py-1 rounded ${p === page ? "bg-primary text-white" : "bg-white border"}`}
+              >
+                {p}
+              </button>
+            ))}
+
+            {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
+
+            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage((p) => Math.min(totalPages, p + 1)) }}>
+              Next
+            </Button>
+
+            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage(totalPages) }}>
+              Last
+            </Button>
+
+            {/* quick jump */}
+            <div className="ml-4 flex items-center gap-2">
+              <span className="text-sm">Jump</span>
+              <Input
+                type="number"
+                min={1}
+                max={totalPages}
+                className="w-20"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = Number((e.target as HTMLInputElement).value || 1);
+                    const pg = Math.max(1, Math.min(totalPages, v));
+                    setPage(pg);
+                    fetchPage(true);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
+    
   );
 }

@@ -6,6 +6,8 @@ on:
     - cron: "*/30 * * * *"
     # Run cleanup once a day at 2:00 AM
     - cron: "0 2 * * *"
+    # Run cleanup once a day
+    - cron: "0 1 * * *"
   workflow_dispatch: {} # Allow manual execution
 
 jobs:
@@ -26,3 +28,10 @@ jobs:
           curl -X POST \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             https://courier-management-system-liard.vercel.app/api/cron/cleanup
+
+      - name: Call Retail Cleanup Cron
+        if: github.event.schedule == '0 1 * * *'
+        run: |
+          curl -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            https://courier-management-system-liard.vercel.app/api/cron/cleanup-retail

@@ -13,8 +13,10 @@ import { eq, inArray, sql } from "drizzle-orm";
 const DTDC_URL =
   "https://blktracksvc.dtdc.com/dtdc-api/rest/JSONCnTrk/getTrackDetails";
 
-// helpers
-function chunk<T>(arr: T[], size = 25): T[][] {
+/* ---------------------------------------------
+   HELPERS
+--------------------------------------------- */
+function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
@@ -60,19 +62,14 @@ async function loadDtdcCredentials(clientId: number) {
 }
 
 function parseDTDCResponse(json: any) {
-  // Matches the single-AWB JSON structure from DTDC doc
-  // Returns { header, timeline } or { error: string }
   if (!json) return { error: "empty_response" };
 
-  // DTDC uses fields: statusFlag/status/statusCode + trackHeader + trackDetails
   if (json.statusFlag === false || json.status === "FAILED") {
-    // check for errorDetails array
     const err = json.errorDetails;
     if (Array.isArray(err) && err.length) {
       const msg = err.map((e: any) => `${e.name}:${e.value}`).join("; ");
       return { error: msg, json };
     }
-    // fallback to generic
     return { error: "DTDC returned failure", json };
   }
 
@@ -88,14 +85,19 @@ function parseDTDCResponse(json: any) {
       destination: header.strDestination,
       bookedOn: parseDtdcDate(header.strBookedDate),
       currentStatus: header.strStatus,
-      lastUpdatedOn: parseDtdcDateTime(header.strStatusTransOn, header.strStatusTransTime),
+      lastUpdatedOn: parseDtdcDateTime(
+        header.strStatusTransOn,
+        header.strStatusTransTime
+      ),
     },
     timeline,
     raw: json,
   };
 }
 
-// Main API
+/* ---------------------------------------------
+   MAIN API
+--------------------------------------------- */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -111,25 +113,22 @@ export async function POST(req: Request) {
     const finalResults: any[] = [];
 
     for (const group of groups) {
-      const code = (group.code ?? "").toString().trim();
+      const code = (group.code ?? "").toUpperCase().trim();
       const awbs = (group.awbs ?? [])
         .map((a) => a.toString().trim())
         .filter(Boolean);
 
       if (!awbs.length) {
-        finalResults.push({ code, message: "no_awbs", total: 0 });
+        finalResults.push({ code, total: 0 });
         continue;
       }
 
-      // -----------------------------
-      // 🔵 IF549 — Retail Special Case
-      // -----------------------------
-      let isRetail = false;
-      if (code.toUpperCase() === "IF549") {
-        isRetail = true;
-      }
+      /* ---------------------------------------------
+         RETAIL HANDLING (IF549)
+      --------------------------------------------- */
+      const isRetail = code === "IF549";
 
-      // Resolve clientId normally
+      // Resolve clientId using DTDC customer code
       const credsRows = await db
         .select()
         .from(clientCredentials)
@@ -137,40 +136,29 @@ export async function POST(req: Request) {
 
       let clientId: number | null = null;
       for (const r of credsRows) {
-        const val = decrypt(r.encrypted_value);
-        if (val === code) {
+        if (decrypt(r.encrypted_value) === code) {
           clientId = Number(r.client_id);
           break;
         }
       }
-      clientId = clientId ?? 1; // fallback (RETAIL)
+      clientId = clientId ?? 1;
 
-      // -----------------------------
-      // Retail: SKIP DTDC credential loading
-      // -----------------------------
-      let creds: { token: string | undefined; customerCode: string | undefined } = {
-        token: undefined,
-        customerCode: undefined,
-      };
+      let creds: {
+        token: string | undefined;
+        customerCode: string | undefined;
+      } = { token: undefined, customerCode: undefined };
 
       if (!isRetail) {
         creds = await loadDtdcCredentials(clientId);
         if (!creds.token || !creds.customerCode) {
-          finalResults.push({
-            code,
-            clientId,
-            error: "missing_dtdc_credentials",
-          });
+          finalResults.push({ code, clientId, error: "missing_dtdc_credentials" });
           continue;
         }
       }
 
-      // Prepare arrays
-      const bulkConsignmentRows: any[] = [];
-      const bulkEventRows: any[] = [];
-      const bulkHistoryRows: any[] = [];
-
-      // Fetch existing consignments to compare previous status
+      /* ---------------------------------------------
+         PRELOAD EXISTING CONSIGNMENTS
+      --------------------------------------------- */
       const existingRows = await db
         .select({
           awb: consignments.awb,
@@ -180,21 +168,28 @@ export async function POST(req: Request) {
         .from(consignments)
         .where(inArray(consignments.awb, awbs));
 
-      const existingMap = new Map(existingRows.map((r: any) => [r.awb, r]));
+      const existingMap = new Map(existingRows.map((r) => [r.awb, r]));
 
-      // Chunk into batches of 25
+      /* ---------------------------------------------
+         STORAGE ARRAYS
+      --------------------------------------------- */
+      const bulkConsignmentRows: any[] = [];
+      const bulkEventRows: any[] = [];
+      const bulkHistoryRows: any[] = [];
+
+      /* ---------------------------------------------
+         PROCESS AWBs IN BATCHES OF 25
+      --------------------------------------------- */
       const batches = chunk(awbs, 25);
 
       for (const batch of batches) {
         const promises = batch.map(async (awb) => {
-          // --------------------------------------------
-          // 🔵 RETAIL (IF549) — NO TRACKING
-          // --------------------------------------------
+          /* ----------- RETAIL (NO TRACKING) ----------- */
           if (isRetail) {
             const prev = existingMap.get(awb);
             bulkConsignmentRows.push({
               awb,
-              client_id: 1, // always retail
+              client_id: 1,
               providers: ["dtdc"],
               origin: prev?.origin ?? null,
               destination: prev?.destination ?? null,
@@ -203,12 +198,10 @@ export async function POST(req: Request) {
               lastStatus: "RETAIL",
               updatedAt: sql`NOW()`,
             });
-            return { awb, status: "retail_saved" };
+            return;
           }
 
-          // --------------------------------------------
-          // Normal DTDC API Tracking (unchanged)
-          // --------------------------------------------
+          /* ----------- DTDC TRACKING ----------- */
           try {
             const res = await fetch(DTDC_URL, {
               method: "POST",
@@ -229,7 +222,19 @@ export async function POST(req: Request) {
             try {
               json = JSON.parse(text);
             } catch {
-              return { awb, error: "invalid_json", raw: text };
+              const prev = existingMap.get(awb);
+              bulkConsignmentRows.push({
+                awb,
+                client_id: clientId,
+                providers: ["dtdc"],
+                origin: prev?.origin ?? null,
+                destination: prev?.destination ?? null,
+                bookedOn: prev?.bookedOn ?? null,
+                lastUpdatedOn: prev?.lastUpdatedOn ?? null,
+                lastStatus: "NO DATA FOUND",
+                updatedAt: sql`NOW()`,
+              });
+              return;
             }
 
             const parsed = parseDTDCResponse(json);
@@ -247,12 +252,11 @@ export async function POST(req: Request) {
                 lastStatus: "NO DATA FOUND",
                 updatedAt: sql`NOW()`,
               });
-              return { awb, error: parsed.error };
+              return;
             }
 
             const hdr = parsed.header!;
             const timeline = parsed.timeline;
-
             const prev = existingMap.get(awb);
             const prevStatus = prev?.lastStatus ?? null;
 
@@ -288,9 +292,7 @@ export async function POST(req: Request) {
                 newStatus,
               });
             }
-
-            return { awb, parsed: hdr };
-          } catch (err: any) {
+          } catch (err) {
             const prev = existingMap.get(awb);
             bulkConsignmentRows.push({
               awb,
@@ -303,14 +305,15 @@ export async function POST(req: Request) {
               lastStatus: "NO DATA FOUND",
               updatedAt: sql`NOW()`,
             });
-            return { awb, error: err?.message ?? String(err) };
           }
         });
 
         await Promise.allSettled(promises);
       }
 
-      // ----- UPSERT CONSIGNMENTS (unchanged)
+      /* ---------------------------------------------
+         UPSERT CONSIGNMENTS
+      --------------------------------------------- */
       if (bulkConsignmentRows.length > 0) {
         await db
           .insert(consignments)
@@ -330,14 +333,19 @@ export async function POST(req: Request) {
           });
       }
 
-      // Retail will have no events/history → skip gracefully
+      /* ---------------------------------------------
+         FETCH CONSIGNMENT IDS
+      --------------------------------------------- */
       const allCons = await db
         .select({ awb: consignments.awb, id: consignments.id })
         .from(consignments)
         .where(inArray(consignments.awb, awbs));
 
-      const idMap = new Map(allCons.map((r: any) => [r.awb, r.id]));
+      const idMap = new Map(allCons.map((r) => [r.awb, r.id]));
 
+      /* ---------------------------------------------
+         BATCH INSERT EVENTS (200 LIMIT)
+      --------------------------------------------- */
       const eventInsertValues = bulkEventRows
         .map((e) => {
           const cid = idMap.get(e.awb);
@@ -352,15 +360,18 @@ export async function POST(req: Request) {
             remarks: e.remarks,
           };
         })
-        .filter((v): v is any => v !== null);
+        .filter(Boolean) as any[];
 
       if (eventInsertValues.length > 0) {
-        await db
-          .insert(trackingEvents)
-          .values(eventInsertValues)
-          .onConflictDoNothing();
+        const batches = chunk(eventInsertValues, 200);
+        for (const batch of batches) {
+          await db.insert(trackingEvents).values(batch).onConflictDoNothing();
+        }
       }
 
+      /* ---------------------------------------------
+         BATCH INSERT HISTORY (200 LIMIT)
+      --------------------------------------------- */
       const historyInsertValues = bulkHistoryRows
         .map((h) => {
           const cid = idMap.get(h.awb);
@@ -371,13 +382,18 @@ export async function POST(req: Request) {
             newStatus: h.newStatus,
           };
         })
-        .filter((v): v is any => v !== null);
+        .filter(Boolean) as any[];
 
       if (historyInsertValues.length > 0) {
-        await db.insert(trackingHistory).values(historyInsertValues);
+        const batches = chunk(historyInsertValues, 200);
+        for (const batch of batches) {
+          await db.insert(trackingHistory).values(batch);
+        }
       }
 
-      // Summary
+      /* ---------------------------------------------
+         SUMMARY
+      --------------------------------------------- */
       finalResults.push({
         code,
         clientId,

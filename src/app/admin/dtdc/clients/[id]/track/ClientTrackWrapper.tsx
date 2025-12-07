@@ -334,11 +334,30 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
           <div className="flex items-center gap-3">
             <Button
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              disabled={loading}
               onClick={refreshTracking}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Click me to refresh status
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="white"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                  </svg>
+                  Refreshing...
+                </span>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Click me to refresh status
+                </>
+              )}
             </Button>
 
             <Button variant="outline" onClick={() => exportToExcel(rows)}>

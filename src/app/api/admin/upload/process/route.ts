@@ -160,13 +160,17 @@ export async function POST(req: Request) {
          PRELOAD EXISTING CONSIGNMENTS
       --------------------------------------------- */
       const existingRows = await db
-        .select({
-          awb: consignments.awb,
-          id: consignments.id,
-          lastStatus: consignments.lastStatus,
-        })
-        .from(consignments)
-        .where(inArray(consignments.awb, awbs));
+      .select({
+        awb: consignments.awb,
+        id: consignments.id,
+        lastStatus: consignments.lastStatus,
+        origin: consignments.origin,
+        destination: consignments.destination,
+        bookedOn: consignments.bookedOn,
+        lastUpdatedOn: consignments.lastUpdatedOn,
+      })
+      .from(consignments)
+      .where(inArray(consignments.awb, awbs));
 
       const existingMap = new Map(existingRows.map((r) => [r.awb, r]));
 

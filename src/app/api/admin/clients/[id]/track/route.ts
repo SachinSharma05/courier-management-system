@@ -1,35 +1,27 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest, context: { params: { id: string } }) {
+  const { id } = context.params;
+
   try {
-    const clientId = Number(params.id);
-    if (!clientId) {
-      return NextResponse.json({ error: "Invalid clientId" }, { status: 400 });
-    }
-
     const body = await req.json();
-    const provider = body?.provider || "dtdc";
+    const provider = body.provider ?? "dtdc";
 
-    // Call your EXISTING working DTDC tracking API
-    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/admin/dtdc/track`, {
+    // Forward to main DTDC tracking engine
+    const res = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/dtdc/track`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
       body: JSON.stringify({
-        clientId,
+        clientId: Number(id),
         provider,
-        // Do NOT send consignments → /api/dtdc/track will auto-fetch pending AWBs
+        consignments: body.consignments ?? []
       }),
+      cache: "no-store",
     });
 
     const json = await res.json();
     return NextResponse.json(json);
-
   } catch (err: any) {
-    console.error("TRACK WRAPPER ERROR:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

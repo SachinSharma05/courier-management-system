@@ -51,9 +51,7 @@ async function loadDtdcCredentials(clientId: number) {
     .where(eq(clientCredentials.client_id, clientId));
 
   const creds: Record<string, string | undefined> = {};
-  for (const r of rows) {
-    creds[r.env_key] = decrypt(r.encrypted_value);
-  }
+  for (const r of rows) creds[r.env_key] = decrypt(r.encrypted_value);
 
   return {
     token: creds["api_token"],
@@ -119,16 +117,25 @@ export async function POST(req: Request) {
         .filter(Boolean);
 
       if (!awbs.length) {
-        finalResults.push({ code, total: 0 });
+        finalResults.push({ code, totalAwbs: 0 });
         continue;
       }
 
       /* ---------------------------------------------
-         RETAIL HANDLING (IF549)
+         IF549 MUST BE SKIPPED COMPLETELY (NEW LOGIC)
       --------------------------------------------- */
-      const isRetail = code === "IF549";
+      if (code === "IF549") {
+        finalResults.push({
+          code,
+          skipped: true,
+          message: "IF549 is excluded from processing",
+        });
+        continue; // 🚀 STOP — DO NOT SAVE OR TRACK
+      }
 
-      // Resolve clientId using DTDC customer code
+      /* ---------------------------------------------
+         RESOLVE CLIENT ID
+      --------------------------------------------- */
       const credsRows = await db
         .select()
         .from(clientCredentials)
@@ -143,34 +150,34 @@ export async function POST(req: Request) {
       }
       clientId = clientId ?? 1;
 
-      let creds: {
-        token: string | undefined;
-        customerCode: string | undefined;
-      } = { token: undefined, customerCode: undefined };
-
-      if (!isRetail) {
-        creds = await loadDtdcCredentials(clientId);
-        if (!creds.token || !creds.customerCode) {
-          finalResults.push({ code, clientId, error: "missing_dtdc_credentials" });
-          continue;
-        }
+      /* ---------------------------------------------
+         LOAD DTDC CREDS
+      --------------------------------------------- */
+      const creds = await loadDtdcCredentials(clientId);
+      if (!creds.token || !creds.customerCode) {
+        finalResults.push({
+          code,
+          clientId,
+          error: "missing_dtdc_credentials",
+        });
+        continue;
       }
 
       /* ---------------------------------------------
-         PRELOAD EXISTING CONSIGNMENTS
+         PRELOAD CONSIGNMENTS
       --------------------------------------------- */
       const existingRows = await db
-      .select({
-        awb: consignments.awb,
-        id: consignments.id,
-        lastStatus: consignments.lastStatus,
-        origin: consignments.origin,
-        destination: consignments.destination,
-        bookedOn: consignments.bookedOn,
-        lastUpdatedOn: consignments.lastUpdatedOn,
-      })
-      .from(consignments)
-      .where(inArray(consignments.awb, awbs));
+        .select({
+          awb: consignments.awb,
+          id: consignments.id,
+          lastStatus: consignments.lastStatus,
+          origin: consignments.origin,
+          destination: consignments.destination,
+          bookedOn: consignments.bookedOn,
+          lastUpdatedOn: consignments.lastUpdatedOn,
+        })
+        .from(consignments)
+        .where(inArray(consignments.awb, awbs));
 
       const existingMap = new Map(existingRows.map((r) => [r.awb, r]));
 
@@ -182,30 +189,12 @@ export async function POST(req: Request) {
       const bulkHistoryRows: any[] = [];
 
       /* ---------------------------------------------
-         PROCESS AWBs IN BATCHES OF 25
+         BATCH PROCESS AWBs
       --------------------------------------------- */
       const batches = chunk(awbs, 25);
 
       for (const batch of batches) {
         const promises = batch.map(async (awb) => {
-          /* ----------- RETAIL (NO TRACKING) ----------- */
-          if (isRetail) {
-            const prev = existingMap.get(awb);
-            bulkConsignmentRows.push({
-              awb,
-              client_id: 1,
-              providers: ["dtdc"],
-              origin: prev?.origin ?? null,
-              destination: prev?.destination ?? null,
-              bookedOn: prev?.bookedOn ?? null,
-              lastUpdatedOn: prev?.lastUpdatedOn ?? null,
-              lastStatus: "RETAIL",
-              updatedAt: sql`NOW()`,
-            });
-            return;
-          }
-
-          /* ----------- DTDC TRACKING ----------- */
           try {
             const res = await fetch(DTDC_URL, {
               method: "POST",
@@ -338,7 +327,7 @@ export async function POST(req: Request) {
       }
 
       /* ---------------------------------------------
-         FETCH CONSIGNMENT IDS
+         FETCH ID MAP
       --------------------------------------------- */
       const allCons = await db
         .select({ awb: consignments.awb, id: consignments.id })
@@ -348,7 +337,7 @@ export async function POST(req: Request) {
       const idMap = new Map(allCons.map((r) => [r.awb, r.id]));
 
       /* ---------------------------------------------
-         BATCH INSERT EVENTS (200 LIMIT)
+         INSERT EVENTS (200 BATCH)
       --------------------------------------------- */
       const eventInsertValues = bulkEventRows
         .map((e) => {
@@ -374,7 +363,7 @@ export async function POST(req: Request) {
       }
 
       /* ---------------------------------------------
-         BATCH INSERT HISTORY (200 LIMIT)
+         INSERT HISTORY (200 BATCH)
       --------------------------------------------- */
       const historyInsertValues = bulkHistoryRows
         .map((h) => {
@@ -395,13 +384,9 @@ export async function POST(req: Request) {
         }
       }
 
-      /* ---------------------------------------------
-         SUMMARY
-      --------------------------------------------- */
       finalResults.push({
         code,
         clientId,
-        isRetail,
         totalAwbs: awbs.length,
         consignmentsUpserted: bulkConsignmentRows.length,
         eventsInserted: eventInsertValues.length,

@@ -52,8 +52,9 @@ export default function UploadPage() {
         }
 
         const g: Group[] = Array.from(map.entries())
-          .map(([code, awbs]) => ({ code, awbs }))
-          .sort((a, b) => b.awbs.length - a.awbs.length);
+        .filter(([code]) => code.toUpperCase() !== "IF549")   // ❗ skip IF549
+        .map(([code, awbs]) => ({ code, awbs }))
+        .sort((a, b) => b.awbs.length - a.awbs.length);
 
         setGroups(g);
         toast.success(`Parsed ${rows.length} rows — ${g.length} groups`);

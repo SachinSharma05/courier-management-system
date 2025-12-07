@@ -40,18 +40,22 @@ import {
 
 import { RefreshCw, DownloadCloud } from "lucide-react";
 
-import { generateCustomLabel } from "@/app/lib/pdf/generateCustomLabel";
-import { mergePDFs } from "@/app/lib/pdf/mergePDFs";
-
 import type { ConsignmentRow } from "@/interface/ConsignmentRow";
 import { AppError } from "@/interface/AppError";
 import { ColKeySortColumn } from "@/interface/ColKeySortColumn";
+import {
+  computeTAT,
+  computeMovement,
+  isDelivered,
+} from "@/lib/tracking/utils";
+
+import { exportConsignmentsToExcel } from "@/lib/export/excel";
+import { downloadMergedLabelForRow } from "@/lib/pdf/label-utils";
+
 
 const DEFAULT_PAGE_SIZE = 50;
-const DEFAULT_BATCH_SIZE = 25;
 
 export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
-
   // table + paging + filters
   const [rows, setRows] = useState<ConsignmentRow[]>([]);
   const [page, setPage] = useState(1);
@@ -148,74 +152,8 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
   // re-fetch when page changes or filters change
   useEffect(() => {
-  fetchPage();
-}, [fetchPage]);
-
-  // ---------- export ----------
-  function exportToExcel(rowsToExport: ConsignmentRow[], filename = "dtdc-tracking") {
-    if (!rowsToExport.length) return toast.error("No rows to export");
-    const data = [
-      ["AWB", "Status", "Booked", "Last Update", "Origin", "Destination"],
-      ...rowsToExport.map((r) => [r.awb, r.last_status ?? "", r.booked_on ?? "", r.last_updated_on ?? "", r.origin ?? "", r.destination ?? ""]),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Tracking");
-    const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-    const blob = new Blob([out], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filename}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Export started");
-  }
-
-  // ---------- compute badges ----------
-  function computeTATLocal(r: ConsignmentRow) {
-    if (r.tat) return r.tat;
-    if (!r.booked_on) return "On Time";
-    const prefix = r.awb?.charAt(0)?.toUpperCase();
-    const rules: Record<string, number> = { D: 3, M: 5, N: 7, I: 10 };
-    const allowed = rules[prefix as string] ?? 5;
-    const age = dayjs().diff(dayjs(r.booked_on), "day");
-    if (age > allowed + 3) return "Very Critical";
-    if (age > allowed) return "Critical";
-    if (age >= Math.max(0, allowed - 1)) return "Warning";
-    return "On Time";
-  }
-
-  function computeMovementLocal(r: ConsignmentRow) {
-    if (r.movement) return r.movement;
-    if (!r.timeline || r.timeline.length === 0) return "On Time";
-    const last = r.timeline[0];
-    if (!last?.actionDate) return "On Time";
-    const lastTs = new Date(`${last.actionDate}T${last.actionTime ?? "00:00:00"}`).getTime();
-    const hours = Math.floor((Date.now() - lastTs) / (1000 * 60 * 60));
-    if (hours >= 72) return "Stuck (72+ hrs)";
-    if (hours >= 48) return "Slow (48 hrs)";
-    if (hours >= 24) return "Slow (24 hrs)";
-    return "On Time";
-  }
-
-  function tatBadge(tat: string, isDelivered = false) {
-    if (isDelivered) return <span className="px-2 py-0.5 rounded text-sm bg-green-100 text-green-800">Delivered</span>;
-    const t = (tat ?? "").toLowerCase();
-    if (t.includes("very")) return <span className="px-2 py-0.5 rounded text-sm bg-red-600 text-white">Very Critical</span>;
-    if (t.includes("critical")) return <span className="px-2 py-0.5 rounded text-sm bg-red-100 text-red-700">Critical</span>;
-    if (t.includes("warn")) return <span className="px-2 py-0.5 rounded text-sm bg-yellow-100 text-yellow-800">Warning</span>;
-    return <span className="px-2 py-0.5 rounded text-sm bg-slate-100 text-slate-800">{tat}</span>;
-  }
-
-  function moveBadge(move: string, isDelivered = false) {
-    if (isDelivered) return <span className="px-2 py-0.5 rounded text-sm bg-green-100 text-green-800">Delivered</span>;
-    const m = (move ?? "").toLowerCase();
-    if (m.includes("72")) return <span className="px-2 py-0.5 rounded text-sm bg-red-600 text-white">{move}</span>;
-    if (m.includes("48")) return <span className="px-2 py-0.5 rounded text-sm bg-red-100 text-red-700">{move}</span>;
-    if (m.includes("24")) return <span className="px-2 py-0.5 rounded text-sm bg-yellow-100 text-yellow-800">{move}</span>;
-    return <span className="px-2 py-0.5 rounded text-sm bg-slate-100 text-slate-800">{move}</span>;
-  }
+    fetchPage();
+  }, [fetchPage]);
 
   // ---------- pagination helpers ----------
   const pageNumbers = useMemo(() => {
@@ -225,46 +163,6 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
     for (let i = start; i <= end; i++) out.push(i);
     return out;
   }, [page, totalPages]);
-
-  // ---------- generate & download merged label ----------
-  async function downloadMergedLabel(r: ConsignmentRow) {
-    try {
-      // fetch DTDC label
-      const res = await fetch("/api/dtdc/label", {
-        method: "POST",
-        body: JSON.stringify({ awb: r.awb }),
-      });
-      const json = await res.json();
-      if (!json?.data?.[0]?.label) {
-        toast.error(json?.error?.message || "DTDC label not available");
-        return;
-      }
-      const dtdcBase64 = json.data[0].label; // assuming base64 or binary wrapped as base64
-
-      // generate custom label (returns Uint8Array or ArrayBuffer)
-      const customPdf = await generateCustomLabel({
-        awb: r.awb,
-        company: "VIS Pvt Ltd",
-        address: "Indore, Madhya Pradesh",
-        phone: "+91 9340384339",
-      });
-
-      // merge (both must be Uint8Array)
-      const mergedBytes = await mergePDFs(new Uint8Array(customPdf), new Uint8Array(dtdcBase64));
-
-      const blob = new Blob([new Uint8Array(mergedBytes)], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `LABEL_${r.awb}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Label downloaded");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate label");
-    }
-  }
 
   // Mapping sortable columns
   function colKey(label: string) {
@@ -292,34 +190,52 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
   // refresh pending tracking
   async function refreshTracking() {
-  setLoading(true);
-  try {
-    const res = await fetch(`/api/admin/dtdc/track`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clientId,
-        provider: "dtdc"
-      })
-    });
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/dtdc/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId,
+          provider: "dtdc"
+        })
+      });
 
-    const json = await res.json();
+      const json = await res.json();
 
-    if (!res.ok || json.error) {
-      toast.error(json.error || "Failed to refresh tracking");
-    } else {
+      if (!res.ok || json.error) {
+        toast.error(json.error || "Failed to refresh tracking");
+      } else {
+        toast.success("Tracking updated");
+      }
+
+      await fetchPage(true);
       toast.success("Tracking updated");
+    } catch (e) {
+      toast.error("Failed to refresh");
+    } finally {
+      setLoading(false);
     }
-
-    await fetchPage(true);
-    toast.success("Tracking updated");
-  } catch (e) {
-    toast.error("Failed to refresh");
-  } finally {
-    setLoading(false);
   }
-}
 
+  function tatBadgeUI(t: string) {
+    switch (t) {
+      case "Delivered":
+        return <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded">Delivered</span>;
+      case "Sensitive":
+        return <span className="px-2 py-0.5 bg-red-600 text-white rounded">Sensitive</span>;
+      case "Critical":
+        return <span className="px-2 py-0.5 bg-red-200 text-red-800 rounded">Critical</span>;
+      case "Warning":
+        return <span className="px-2 py-0.5 bg-yellow-200 text-yellow-800 rounded">Warning</span>;
+      default:
+        return <span className="px-2 py-0.5 bg-slate-200 text-slate-800 rounded">On Time</span>;
+    }
+  }
+
+  function moveBadgeUI(t: string) {
+    return tatBadgeUI(t); // identical styling rules
+  }
 
   // ---------- UI ----------
   return (
@@ -360,12 +276,18 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
               )}
             </Button>
 
-            <Button variant="outline" onClick={() => exportToExcel(rows)}>
-              <DownloadCloud className="mr-2 h-4 w-4" /> Export All
-            </Button>
-
-            <Button variant="default" onClick={() => exportToExcel(rows /* filtered rows already */ , "filtered-tracking")}>
-              Export Filtered
+            <Button
+              variant="default"
+              onClick={() => {
+                try {
+                  exportConsignmentsToExcel(rows);
+                  toast.success("Excel exported");
+                } catch {
+                  toast.error("Unable to export");
+                }
+              }}
+            >
+              Export Excel
             </Button>
           </div>
         </div>
@@ -380,10 +302,6 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="in transit">In Transit</SelectItem>
-                <SelectItem value="out for delivery">Out For Delivery</SelectItem>
-                <SelectItem value="attempted">Attempted</SelectItem>
-                <SelectItem value="held">Held Up</SelectItem>
                 <SelectItem value="rto">RTO</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
@@ -471,9 +389,14 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                   )}
 
                   {rows.map((r) => {
-                    const delivered = ((r.last_status ?? "") + "").toLowerCase().includes("deliv");
-                    const tat = computeTATLocal(r);
-                    const move = computeMovementLocal(r);
+                    const delivered = isDelivered(r.last_status);
+
+                    const tat = computeTAT(r.awb, r.booked_on, r.last_status);
+                    const move = computeMovement(
+                      r.timeline?.[0]?.actionDate,
+                      r.timeline?.[0]?.actionTime,
+                      r.last_status
+                    );
 
                     return (
                       <TR key={r.awb} className={`${delivered ? "bg-green-50" : ""} hover:bg-muted/40`}>
@@ -484,8 +407,8 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                         <TableCell>{r.origin ?? "-"}</TableCell>
                         <TableCell>{r.destination ?? "-"}</TableCell>
 
-                        <TableCell>{tatBadge(delivered ? "Delivered" : tat, delivered)}</TableCell>
-                        <TableCell>{moveBadge(delivered ? "Delivered" : move, delivered)}</TableCell>
+                        <TableCell>{tatBadgeUI(tat)}</TableCell>
+                        <TableCell>{moveBadgeUI(move)}</TableCell>
 
                         {/* Timeline */}
                         <TableCell>
@@ -528,7 +451,15 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
                         {/* PDF */}
                         <TableCell>
-                          <Button size="sm" variant="outline" onClick={() => downloadMergedLabel(r)}>
+                          <Button size="sm" variant="outline" onClick={async () => {
+                            try {
+                              await downloadMergedLabelForRow(r);
+                              toast.success("Label downloaded");
+                            } catch (e) {
+                              toast.error("Failed generating label");
+                            }
+                          }}
+                          >
                             PDF
                           </Button>
                         </TableCell>

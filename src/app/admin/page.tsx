@@ -49,10 +49,10 @@ function StatRow({ label, value, color }: { label: string; value: number; color:
    ------------------------- */
 
 const PROVIDERS = [
-  { key: "dtdc", name: "DTDC" },
-  { key: "delh", name: "Delhivery" },
-  { key: "xb", name: "XpressBees" },
-  { key: "aramax", name: "Aramex" },
+  { key: "dtdc", name: "DTDC", href: "/admin/dtdc" },
+  { key: "delh", name: "Delhivery", href: "/admin/delhivery" },
+  { key: "xb", name: "XpressBees", href: "/admin/xpressbees" },
+  { key: "aramax", name: "Aramex", href: "/admin/aramex" },
 ];
 
 const COLORS = {
@@ -170,25 +170,30 @@ export default function PremiumDashboard() {
           <div className="grid grid-cols-2 gap-4">
             {PROVIDERS.map(p => {
               const d = stats[p.key] ?? { delivered:0, pending:0, rto:0, total:0 };
-              return (
-                <Card key={p.key} className="p-4 rounded-xl hover:shadow-xl transition transform hover:-translate-y-1">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="text-2xl">{providerIcon(p.key)}</div>
-                      <div>
-                        <div className="text-lg font-semibold">{p.name}</div>
-                        <div className="text-xs text-gray-400">Total: {d.total ?? 0}</div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-400">Live</div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <StatRow label="Delivered" value={d.delivered ?? 0} color={COLORS.delivered}/>
-                    <StatRow label="Pending" value={d.pending ?? 0} color={COLORS.pending}/>
-                    <StatRow label="RTO" value={d.rto ?? 0} color={COLORS.rto}/>
-                  </div>
-                </Card>
+              return (
+                <Link key={p.key} href={p.href}>
+                  <Card className="p-4 rounded-xl hover:shadow-xl transition transform hover:-translate-y-1 cursor-pointer">
+                    
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{providerIcon(p.key)}</div>
+                        <div>
+                          <div className="text-lg font-semibold">{p.name}</div>
+                          <div className="text-xs text-gray-400">Total: {d.total ?? 0}</div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-400">Live</div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <StatRow label="Delivered" value={d.delivered} color={COLORS.delivered}/>
+                      <StatRow label="Pending" value={d.pending} color={COLORS.pending}/>
+                      <StatRow label="RTO" value={d.rto} color={COLORS.rto}/>
+                    </div>
+
+                  </Card>
+                </Link>
               );
             })}
           </div>

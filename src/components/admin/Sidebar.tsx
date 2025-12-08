@@ -7,7 +7,6 @@ import { useState } from "react";
 import {
   Home,
   Search,
-  MapPin,
   FileText,
   Layers,
   Package,
@@ -35,10 +34,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
   const isExpanded = sidebarOpen || hovering;
 
   // open/close sections
-  const [dtdcOpen, setDtdcOpen] = useState(false);
-  const [delOpen, setDelOpen] = useState(false);
-  const [xbOpen, setXbOpen] = useState(false);
-
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     localStorage.clear();
@@ -109,6 +104,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           isExpanded={isExpanded}
         />
 
+        <SidebarItem
+          href="/admin/aramex"
+          label="Aramex"
+          icon={<Package size={20} className="text-yellow-500" />}
+          active={pathname.startsWith("/admin/aramex")}
+          isExpanded={isExpanded}
+        />
+
+        {isExpanded && <SectionLabel label="Clients & Providers" />}
         <SidebarItem
           href="/admin/dtdc/clients"
           label="Clients"
@@ -192,42 +196,6 @@ function SectionLabel({ label }: any) {
     <div className="px-3 text-[11px] uppercase tracking-wide text-gray-500">
       {label}
     </div>
-  );
-}
-
-function ProviderSection({ title, icon, open, toggle, isExpanded, children }: any) {
-  return (
-    <div className="space-y-1">
-      <button
-        onClick={toggle}
-        className="flex items-center justify-between w-full px-3 py-2 
-        rounded-lg hover:bg-white/40 transition"
-      >
-        <div className="flex items-center gap-3">{icon}{isExpanded && <span className="font-medium">{title}</span>}</div>
-        {isExpanded && (open ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
-      </button>
-
-      {/* Always show icons even when collapsed */}
-      {open && (
-        <div className="ml-2 pl-3 border-l border-gray-300 space-y-1 transition-all">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SidebarLink({ href, label, icon, active, isExpanded }: any) {
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition 
-        ${active ? "bg-blue-100 text-blue-700 shadow-sm" : "hover:bg-white/60"}
-      `}
-    >
-      {icon}
-      {isExpanded && <span>{label}</span>}
-    </Link>
   );
 }
 

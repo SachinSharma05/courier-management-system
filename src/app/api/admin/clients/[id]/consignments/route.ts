@@ -70,28 +70,48 @@ export async function GET(req: Request) {
     }
 
     // Status Filters (STRICT MATCHING)
-    // Delivered → must mean actual delivery
-    if (status === "delivered") {
-      whereClauses.push(sql`
-        LOWER(c.last_status) IN ('delivered', 'delivered to consignee', 'delivered – left at doorstep')
-      `);
-    }
+    if (status && status !== "all") {
+      switch (status) {
+        case "delivered":
+          whereClauses.push(sql`LOWER(c.last_status) = 'delivered'`);
+          break;
 
-    // RTO → return-to-origin indicators
-    if (status === "rto") {
-      whereClauses.push(sql`
-        LOWER(c.last_status) LIKE '%rto%'
-        OR LOWER(c.last_status) LIKE '%return to origin%'
-      `);
-    }
+        case "rto":
+          whereClauses.push(sql`LOWER(c.last_status) = 'rto'`);
+          break;
 
-    // Pending → anything that is NOT delivered or RTO
-    if (status === "pending-group") {
-      whereClauses.push(sql`
-        LOWER(c.last_status) NOT IN ('delivered', 'delivered to consignee', 'delivered – left at doorstep')
-        AND LOWER(c.last_status) NOT LIKE '%rto%'
-        AND LOWER(c.last_status) NOT LIKE '%return to origin%'
-      `);
+        case "in transit":
+          whereClauses.push(sql`LOWER(c.last_status) = 'in transit'`);
+          break;
+
+        case "out for delivery":
+          whereClauses.push(sql`LOWER(c.last_status) = 'out for delivery'`);
+          break;
+
+        case "reached at destination":
+          whereClauses.push(sql`LOWER(c.last_status) = 'reached at destination'`);
+          break;
+
+        case "received at delivery centre":
+          whereClauses.push(sql`LOWER(c.last_status) = 'received at delivery centre'`);
+          break;
+
+        case "weekly off":
+          whereClauses.push(sql`LOWER(c.last_status) = 'weekly off'`);
+          break;
+
+        case "undelivered":
+          whereClauses.push(sql`LOWER(c.last_status) = 'undelivered'`);
+          break;
+
+        case "pending":
+          whereClauses.push(sql`
+            LOWER(c.last_status) NOT IN (
+              'delivered', 'rto', 'undelivered'
+            )
+          `);
+          break;
+      }
     }
 
     // Date Filters

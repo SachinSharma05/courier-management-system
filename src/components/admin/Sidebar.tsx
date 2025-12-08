@@ -85,59 +85,29 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
         />
 
         {isExpanded && <SectionLabel label="Providers" />}
-
-        <ProviderSection
-          title="DTDC"
+        <SidebarItem
+          href="/admin/dtdc"
+          label="DTDC"
           icon={<Boxes size={20} className="text-blue-600" />}
-          open={dtdcOpen}
-          toggle={() => setDtdcOpen(!dtdcOpen)}
+          active={pathname.startsWith("/admin/detdc")}
           isExpanded={isExpanded}
-        >
-          <SidebarLink
-            href="/admin/dtdc/track"
-            label="Track Consignment"
-            icon={<Search size={16} />}
-            active={pathname.startsWith("/admin/dtdc/track")}
-            isExpanded={isExpanded}
-          />
-          <SidebarLink
-            href="/admin/dtdc/pincode"
-            label="Pincode Serviceability"
-            icon={<MapPin size={16} />}
-            active={pathname.startsWith("/admin/dtdc/pincode")}
-            isExpanded={isExpanded}
-          />
-        </ProviderSection>
+        />
 
-        <ProviderSection
-          title="Delhivery"
+        <SidebarItem
+          href="/admin/delhivery"
+          label="Delhivery"
           icon={<Truck size={20} className="text-orange-500" />}
-          open={delOpen}
-          toggle={() => setDelOpen(!delOpen)}
+          active={pathname.startsWith("/admin/delhivery")}
           isExpanded={isExpanded}
-        >
-          <SidebarLink
-            href="/admin/delhivery/track"
-            label="Track Consignment"
-            icon={<Search size={16} />}
-            isExpanded={isExpanded}
-          />
-        </ProviderSection>
+        />
 
-        <ProviderSection
-          title="XpressBees"
+        <SidebarItem
+          href="/admin/xpressbees"
+          label="XpressBees"
           icon={<Building2 size={20} className="text-yellow-500" />}
-          open={xbOpen}
-          toggle={() => setXbOpen(!xbOpen)}
+          active={pathname.startsWith("/admin/xpressbees")}
           isExpanded={isExpanded}
-        >
-          <SidebarLink
-            href="/admin/xpress/track"
-            label="Track Consignment"
-            icon={<Search size={16} />}
-            isExpanded={isExpanded}
-          />
-        </ProviderSection>
+        />
 
         <SidebarItem
           href="/admin/dtdc/clients"
@@ -191,7 +161,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           isExpanded={isExpanded}
         />
 		
-		<SidebarItem
+		    <SidebarItem
           href="/admin/dtdc/settings"
           label="Settings"
           icon={<Settings size={17} />}

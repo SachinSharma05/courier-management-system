@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments } from "@/app/db/schema";
-import {
-  eq,
-  sql,
-  and,
-  ilike,
-  gte,
-  lte,
-} from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 // ------------------------------
 // Helpers
@@ -77,31 +69,28 @@ export async function GET(req: Request) {
       whereClauses.push(sql`c.awb ILIKE ${'%' + search + '%'}`);
     }
 
-    // Status Filters
+    // Status Filters (STRICT MATCHING)
+    // Delivered → must mean actual delivery
     if (status === "delivered") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%deliver%'`);
-    }
-    if (status === "rto") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%rto%'`);
-    }
-    if (status === "in transit") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%transit%'`);
-    }
-    if (status === "out for delivery") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%out for delivery%'`);
-    }
-    if (status === "attempted") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%attempt%'`);
-    }
-    if (status === "held") {
-      whereClauses.push(sql`LOWER(c.last_status) LIKE '%held%'`);
+      whereClauses.push(sql`
+        LOWER(c.last_status) IN ('delivered', 'delivered to consignee', 'delivered – left at doorstep')
+      `);
     }
 
-    // Pending Group
+    // RTO → return-to-origin indicators
+    if (status === "rto") {
+      whereClauses.push(sql`
+        LOWER(c.last_status) LIKE '%rto%'
+        OR LOWER(c.last_status) LIKE '%return to origin%'
+      `);
+    }
+
+    // Pending → anything that is NOT delivered or RTO
     if (status === "pending-group") {
       whereClauses.push(sql`
-        LOWER(c.last_status) NOT LIKE '%deliver%'
+        LOWER(c.last_status) NOT IN ('delivered', 'delivered to consignee', 'delivered – left at doorstep')
         AND LOWER(c.last_status) NOT LIKE '%rto%'
+        AND LOWER(c.last_status) NOT LIKE '%return to origin%'
       `);
     }
 

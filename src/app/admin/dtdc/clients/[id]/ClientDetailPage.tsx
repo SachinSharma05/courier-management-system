@@ -55,33 +55,29 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <Button variant={tab === "track" ? "default" : "outline"}>Track</Button>
         </Link>
 
-        <Button
-          variant={tab === "book" ? "default" : "outline"}
-          onClick={() => setTab("book")}
-        >
-          Book
-        </Button>
-
-        <Button
-          variant={tab === "bulk" ? "default" : "outline"}
-          onClick={() => setTab("bulk")}
-        >
-          Bulk Book
-        </Button>
-
-        <Button
-          variant={tab === "cancel" ? "default" : "outline"}
-          onClick={() => setTab("cancel")}
-        >
-          Cancel AWB
-        </Button>
-      </div>
-
-      {/* MAIN CONTENT (Modules Switch) */}
-      <div>
-        {tab === "book" && <ClientBook clientId={id} />}
-        {tab === "bulk" && <BulkBook clientId={id} />}
-        {tab === "cancel" && <CancelAwb clientId={id} />}
+        <Link href={`/admin/dtdc/clients/${id}/book`}>
+          <Button
+            variant={tab === "book" ? "default" : "outline"}
+          >
+            Book
+          </Button>
+        </Link>
+        
+        <Link href={`/admin/dtdc/clients/${id}/bulk-book`}>
+          <Button
+            variant={tab === "bulk" ? "default" : "outline"}
+          >
+            Bulk Book
+          </Button>
+        </Link>
+        
+        <Link href={`/admin/dtdc/clients/${id}/cancel`}>
+          <Button
+            variant={tab === "cancel" ? "default" : "outline"}
+          >
+            Cancel AWB
+          </Button>
+        </Link>
       </div>
 
       {/* PENDING SHIPMENTS */}
@@ -93,49 +89,36 @@ export default function ClientDetailPage({ id }: { id: string }) {
         ) : pendingConsignments.length === 0 ? (
           <div className="text-gray-500 p-4">No pending consignments.</div>
         ) : (
-          <div className="border rounded-md divide-y">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border rounded-md">
+              <thead className="bg-gray-100 border-b">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">AWB</th>
+                  <th className="px-4 py-2 text-left font-medium">Provider</th>
+                  <th className="px-4 py-2 text-left font-medium">Status</th>
+                  <th className="px-4 py-2 text-left font-medium">Created At</th>
+                </tr>
+              </thead>
 
-            {pendingConsignments.map((c: any) => (
-              <div
-                key={c.id}
-                className="p-4 flex justify-between items-center hover:bg-gray-50 transition"
-              >
-                <div>
-                  <div className="font-semibold">AWB: {c.awb}</div>
-
-                  <div className="text-sm text-gray-600">
-                    Provider: {c.provider?.toUpperCase() ?? "N/A"}
-                  </div>
-
-                  <div className="text-sm text-gray-500">
-                    Status: {c.last_status}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500 text-right">
-                  {new Date(c.created_at).toLocaleString()}
-                </div>
-              </div>
-            ))}
-
+              <tbody className="divide-y">
+                {pendingConsignments.map((c: any) => (
+                  <tr
+                    key={c.id}
+                    className="hover:bg-gray-50 transition"
+                  >
+                    <td className="px-4 py-3 font-semibold">{c.awb}</td>
+                    <td className="px-4 py-3 uppercase">{c.provider ?? "N/A"}</td>
+                    <td className="px-4 py-3">{c.last_status}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(c.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
     </div>
   );
-}
-
-/* ---------------------------
-   CHILD MODULE PLACEHOLDERS
---------------------------- */
-function ClientBook({ clientId }: { clientId: string }) {
-  return <Card className="p-4">Single Booking Module</Card>;
-}
-
-function BulkBook({ clientId }: { clientId: string }) {
-  return <Card className="p-4">Bulk Booking Module</Card>;
-}
-
-function CancelAwb({ clientId }: { clientId: string }) {
-  return <Card className="p-4">Cancel AWB Module</Card>;
 }

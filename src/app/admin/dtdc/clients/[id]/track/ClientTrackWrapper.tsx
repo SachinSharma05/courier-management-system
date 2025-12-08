@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as XLSX from "xlsx";
-import dayjs from "dayjs";
 import toast from "react-hot-toast";
 import { useSearchParams } from "next/navigation"; 
 
@@ -38,11 +36,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { RefreshCw, DownloadCloud } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import type { ConsignmentRow } from "@/interface/ConsignmentRow";
 import { AppError } from "@/interface/AppError";
-import { ColKeySortColumn } from "@/interface/ColKeySortColumn";
 import {
   computeTAT,
   computeMovement,
@@ -51,7 +48,6 @@ import {
 
 import { exportConsignmentsToExcel } from "@/lib/export/excel";
 import { downloadMergedLabelForRow } from "@/lib/pdf/label-utils";
-
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -164,20 +160,6 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
     return out;
   }, [page, totalPages]);
 
-  // Mapping sortable columns
-  function colKey(label: string) {
-    const map: ColKeySortColumn = {
-        AWB: "awb",
-        Status: "last_status",
-        Booked: "booked_on",
-        Last_Update: "last_updated_on",
-        Origin: "origin",
-        Destination: "destination",
-    };
-
-    return map[label] ?? label;
-  }
-
   const searchParams = useSearchParams();
   useEffect(() => {
     const s = searchParams.get("status");
@@ -235,6 +217,61 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
   function moveBadgeUI(t: string) {
     return tatBadgeUI(t); // identical styling rules
+  }
+
+  function statusBadgeUI(status: string | null | undefined) {
+    if (!status) {
+      return (
+        <span className="px-2 py-0.5 text-xs rounded bg-gray-200 text-gray-700">
+          -
+        </span>
+      );
+    }
+  
+    const s = status.trim().toLowerCase();
+  
+    // Delivered (Green)
+    if (s === "delivered" || s.includes("delivered to")) {
+      return (
+        <span className="px-2 py-0.5 text-xs rounded bg-green-100 text-green-700">
+          Delivered
+        </span>
+      );
+    }
+  
+    // RTO (Red)
+    if (s.includes("rto") || s.includes("return to origin")) {
+      return (
+        <span className="px-2 py-0.5 text-xs rounded bg-red-100 text-red-700">
+          RTO
+        </span>
+      );
+    }
+  
+    // Out for delhivery (Blue)
+    if (s.includes("out for") || s.includes("out for delhivery")) {
+      return (
+        <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-700">
+          Out for Delhivery
+        </span>
+      );
+    }
+
+    // RTO (Red)
+    if (s.includes("reached") || s.includes("reached at destination")) {
+      return (
+        <span className="px-2 py-0.5 text-xs rounded bg-orange-100 text-orange-700">
+          Reached at destination
+        </span>
+      );
+    }
+  
+    // Everything else (Yellow = In Transit / ODA / Received / At DC / etc.)
+    return (
+      <span className="px-2 py-0.5 text-xs rounded bg-yellow-100 text-yellow-700">
+        {status}
+      </span>
+    );
   }
 
   // ---------- UI ----------
@@ -336,49 +373,28 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
           <CardContent className="p-0">
           {/* Outer wrapper must lock height AND prevent ScrollArea from expanding */}
           <div className="h-[90vh] flex flex-col overflow-hidden">
-
-            {/* Header row does NOT scroll */}
-            <div className="shrink-0">
-              <Table className="text-sm">
-                <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                  <TableRow>
-                    {/* --- Sortable columns --- */}
-                  {[
-                    "AWB",
-                    "Status",
-                    "Booked",
-                    "Last Update",
-                    "Origin",
-                    "Destination",
-                  ].map((col) => (
-                    <TableHead
-                      key={col}
-                      className="cursor-pointer select-none hover:bg-muted/40"
-                      onClick={() => {
-                        setRows([...rows].sort((a: any, b: any) =>
-                          (a[colKey(col)] ?? "").localeCompare(b[colKey(col)] ?? "")
-                        ));
-                      }}
-                    >
-                      {col} ▲▼
-                    </TableHead>
-                  ))}
-
-                  <TableHead>TAT</TableHead>
-                  <TableHead>Movement</TableHead>
-                  <TableHead>Timeline</TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-                  <TableHead></TableHead>
-
-                  </TableRow>
-                </TableHeader>
-              </Table>
-            </div>
-
             {/* Scrollable body */}
             <ScrollArea className="flex-1 overflow-auto">
-              <Table className="text-sm">
+              <Table className="text-sm w-full">
+
+                {/* HEADER INSIDE SCROLL AREA (sticky + aligned) */}
+                <TableHeader className="bg-slate-50 sticky top-0 z-20">
+                  <TableRow>
+                    <TableHead className="w-[140px]">AWB</TableHead>
+                    <TableHead className="w-[160px]">Status</TableHead>
+                    <TableHead className="w-[140px]">Booked</TableHead>
+                    <TableHead className="w-[160px]">Last Update</TableHead>
+                    <TableHead className="w-[140px]">Origin</TableHead>
+                    <TableHead className="w-[160px]">Destination</TableHead>
+                    <TableHead className="w-[120px]">TAT</TableHead>
+                    <TableHead className="w-[120px]">Movement</TableHead>
+                    <TableHead className="w-[80px]">Timeline</TableHead>
+                    <TableHead className="w-[80px]">PDF</TableHead>
+                    <TableHead className="w-[100px]">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                {/* BODY — perfectly aligned due to fixed widths */}
                 <TableBody>
                   {rows.length === 0 && (
                     <TR>
@@ -390,7 +406,6 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
                   {rows.map((r) => {
                     const delivered = isDelivered(r.last_status);
-
                     const tat = computeTAT(r.awb, r.booked_on, r.last_status);
                     const move = computeMovement(
                       r.timeline?.[0]?.actionDate,
@@ -400,18 +415,19 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
                     return (
                       <TR key={r.awb} className={`${delivered ? "bg-green-50" : ""} hover:bg-muted/40`}>
-                        <TableCell className="font-medium">{r.awb}</TableCell>
-                        <TableCell>{r.last_status ?? "-"}</TableCell>
-                        <TableCell>{r.booked_on ?? "-"}</TableCell>
-                        <TableCell>{r.last_updated_on ?? "-"}</TableCell>
-                        <TableCell>{r.origin ?? "-"}</TableCell>
-                        <TableCell>{r.destination ?? "-"}</TableCell>
 
-                        <TableCell>{tatBadgeUI(tat)}</TableCell>
-                        <TableCell>{moveBadgeUI(move)}</TableCell>
+                        <TableCell className="w-[140px] font-medium">{r.awb}</TableCell>
+                        <TableCell className="w-[160px]">{statusBadgeUI(r.last_status ?? "-")}</TableCell>
+                        <TableCell className="w-[140px]">{r.booked_on ?? "-"}</TableCell>
+                        <TableCell className="w-[160px]">{r.last_updated_on ?? "-"}</TableCell>
+                        <TableCell className="w-[140px]">{r.origin ?? "-"}</TableCell>
+                        <TableCell className="w-[160px]">{r.destination ?? "-"}</TableCell>
+
+                        <TableCell className="w-[120px]">{tatBadgeUI(tat)}</TableCell>
+                        <TableCell className="w-[120px]">{moveBadgeUI(move)}</TableCell>
 
                         {/* Timeline */}
-                        <TableCell>
+                        <TableCell className="w-[80px]">
                           <Sheet>
                             <SheetTrigger asChild>
                               <button className="text-sm underline text-primary">View</button>
@@ -450,7 +466,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                         </TableCell>
 
                         {/* PDF */}
-                        <TableCell>
+                        <TableCell className="w-[80px]">
                           <Button size="sm" variant="outline" onClick={async () => {
                             try {
                               await downloadMergedLabelForRow(r);
@@ -465,7 +481,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                         </TableCell>
 
                         {/* Details */}
-                        <TableCell>
+                        <TableCell className="w-[100px]">
                           <Sheet>
                             <SheetTrigger asChild>
                               <Button size="sm" variant="secondary">Details</Button>
@@ -510,13 +526,14 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                             </SheetContent>
                           </Sheet>
                         </TableCell>
+
                       </TR>
                     );
                   })}
                 </TableBody>
+
               </Table>
             </ScrollArea>
-
           </div>
         </CardContent>
         </Card>

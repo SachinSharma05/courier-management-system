@@ -60,7 +60,7 @@ export default function DtdcDashboard() {
         </Link>
 
         {/* RTO */}
-        <Link href={`/admin/providerTrack/dtdc?status=rto`}>
+        <Link href="{`/admin/providerTrack/dtdc?status=rto`}">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">

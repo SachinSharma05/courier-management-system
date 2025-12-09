@@ -118,25 +118,25 @@ export default function DelhiveryDashboard() {
             label="Total Shipments"
             value={stats.total}
             color="bg-blue-500"
-            link="/admin/providerConsignments/delhivery?status=all"
+            link="/admin/providerTrack/delhivery?status=all"
           />
           <StatCard
             label="Delivered"
             value={stats.delivered}
             color="bg-green-500"
-            link="/admin/providerConsignments/delhivery?status=delivered"
+            link="/admin/providerTrack/delhivery?status=delivered"
           />
           <StatCard
             label="Pending"
             value={stats.pending}
             color="bg-yellow-500"
-            link="/admin/providerConsignments/delhivery?status=pending"
+            link="/admin/providerTrack/delhivery?status=pending"
           />
           <StatCard
             label="RTO"
             value={stats.rto}
             color="bg-red-500"
-            link="/admin/providerConsignments/delhivery?status=rto"
+            link="/admin/providerTrack/delhivery?status=rto"
           />
         </div>
       </div>
@@ -149,7 +149,7 @@ export default function DelhiveryDashboard() {
           <ToolCard
             title="Create Shipment"
             desc="Book a new Delhivery shipment."
-            href="/admin/delhivery/create"
+            href="/admin/delhivery/create-shipment"
             icon={<Package size={20} />}
           />
 

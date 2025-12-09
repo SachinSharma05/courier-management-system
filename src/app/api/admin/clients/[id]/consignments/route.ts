@@ -76,8 +76,14 @@ export async function GET(req: Request) {
 
         case "pending":
           whereClauses.push(sql`
-            LOWER(c.last_status) NOT IN (
-              'delivered', 'rto', 'undelivered'
+            (
+              c.last_status IS NULL
+              OR LOWER(c.last_status) NOT LIKE '%deliver%'
+              AND LOWER(c.last_status) NOT LIKE '%rto%'
+              AND LOWER(c.last_status) NOT LIKE '%undeliver%'
+              AND LOWER(c.last_status) NOT LIKE '%return%'
+              AND LOWER(c.last_status) NOT LIKE '%cancel%'
+              AND LOWER(c.last_status) NOT LIKE '%lost%'
             )
           `);
           break;

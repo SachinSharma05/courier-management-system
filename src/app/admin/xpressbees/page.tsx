@@ -21,7 +21,7 @@ export default function XpressBeesDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         {/* Total */}
-        <Link href="/admin/providerConsignments/xpressbees?status=all">
+        <Link href="/admin/providerTrack/xpressbees?status=all">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -34,7 +34,7 @@ export default function XpressBeesDashboard() {
         </Link>
 
         {/* Delivered */}
-        <Link href="/admin/providerConsignments/xpressbees?status=delivered">
+        <Link href="/admin/providerTrack/xpressbees?status=delivered">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function XpressBeesDashboard() {
         </Link>
 
         {/* Pending */}
-        <Link href="/admin/providerConsignments/xpressbees?status=pending">
+        <Link href="/admin/providerTrack/xpressbees?status=pending">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function XpressBeesDashboard() {
         </Link>
 
         {/* RTO */}
-        <Link href="/admin/providerConsignments/xpressbees?status=rto">
+        <Link href="/admin/providerTrack/xpressbees?status=rto">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">

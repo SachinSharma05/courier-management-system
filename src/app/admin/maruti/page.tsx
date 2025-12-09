@@ -21,7 +21,7 @@ export default function AramexDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         {/* Total */}
-        <Link href="/admin/providerConsignments/aramex?status=all">
+        <Link href="/admin/providerTrack/maruti?status=all">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -34,7 +34,7 @@ export default function AramexDashboard() {
         </Link>
 
         {/* Delivered */}
-        <Link href="/admin/providerConsignments/aramex?status=delivered">
+        <Link href="/admin/providerTrack/maruti?status=delivered">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function AramexDashboard() {
         </Link>
 
         {/* Pending */}
-        <Link href="/admin/providerConsignments/aramex?status=pending">
+        <Link href="/admin/providerTrack/maruti?status=pending">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function AramexDashboard() {
         </Link>
 
         {/* RTO */}
-        <Link href="/admin/providerConsignments/aramex?status=rto">
+        <Link href="/admin/providerTrack/maruti?status=rto">
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">

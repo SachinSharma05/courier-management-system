@@ -12,7 +12,6 @@ import { providerIcon } from "@/components/admin/provider-icons"; // create belo
 /* -------------------------
    Small helper components
    ------------------------- */
-
 function Counter({ value = 0, duration = 800 }: { value?: number; duration?: number }) {
   const [current, setCurrent] = useState(0);
   useEffect(() => {
@@ -68,7 +67,6 @@ export default function PremiumDashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
-  const [recent, setRecent] = useState<any[]>([]);
   const [retail, setRetail] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -88,8 +86,6 @@ export default function PremiumDashboard() {
       setComplaints(json.complaints ?? []);
       setPie(json.pie ?? { delivered: 0, pending: 0, rto: 0 });
       setTrend(json.trend ?? []);
-      setRecent(json.recent ?? []);
-      setRetail(json.retailBookings ?? 0);
     } catch (err) {
       console.error(err);
       toast.error("Failed to load dashboard");
@@ -129,7 +125,7 @@ export default function PremiumDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={fetchDashboard} className="border px-3">Refresh</Button>
+          <Button variant="default" onClick={fetchDashboard} className="border px-3">Refresh</Button>
           <Link href={`/admin/upload`}>
             <Button variant="default">Upload XLSX</Button>
           </Link>
@@ -140,63 +136,98 @@ export default function PremiumDashboard() {
         {/* LEFT — main content */}
         <div className="col-span-8 space-y-6">
           {/* KPI Grid */}
-          <div className="grid grid-cols-4 gap-4">
-            <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
+          <div className="grid grid-cols-4 gap-6">
+            {/* REVENUE */}
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Total Revenue</div>
-              <div className="mt-2"><Counter value={stats.billing?.totalRevenue ?? 0} /></div>
-              <div className="text-xs text-gray-400 mt-1">Monthly trend • Revenue</div>
+              <div className="mt-2 text-3xl font-extrabold title-gradient">
+                ₹<Counter value={stats.billing?.totalRevenue ?? 0} />
+              </div>
+              <div className="text-xs text-gray-400 mt-1">Monthly Revenue Insights</div>
             </Card>
 
-            <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
+            {/* RETAIL BOOKINGS */}
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Retail Bookings</div>
-              <div className="mt-2"><Counter value={(retail)} /></div>
-              <div className="text-xs text-gray-400 mt-1">Counter Booking</div>
+              <div className="mt-2 text-3xl font-extrabold text-indigo-600">
+                <Counter value={retail ?? 0} />
+              </div>
+              <div className="text-xs text-gray-400 mt-1">Counter Bookings</div>
             </Card>
 
-            <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
-              <div className="text-xs text-gray-500">Avg Price / Unit</div>
-              <div className="mt-2"><Counter value={42} /></div>
+            {/* AVERAGE PRICE */}
+            <Card className="p-5 rounded-2xl card-glass">
+              <div className="text-xs text-gray-500">Average Price / Unit</div>
+              <div className="mt-2 text-3xl font-extrabold text-amber-600">
+                ₹<Counter value={42} />
+              </div>
               <div className="text-xs text-gray-400 mt-1">Estimated</div>
             </Card>
 
-            <Card className="p-4 rounded-xl shadow-sm hover:shadow-lg transition transform hover:-translate-y-1">
+            {/* OPEN COMPLAINTS */}
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Open Complaints</div>
-              <div className="mt-2"><Counter value={ (complaints || []).filter((x:any)=>x.status==='open').length } /></div>
-              <div className="text-xs text-gray-400 mt-1">Needs attention</div>
+              <div className="mt-2 text-3xl font-extrabold text-red-600">
+                <Counter value={(complaints || []).filter((c:any)=>c.status==='open').length} />
+              </div>
+              <div className="text-xs text-gray-400 mt-1">Action Required</div>
             </Card>
           </div>
 
           {/* Provider cards row */}
-          <div className="grid grid-cols-2 gap-4">
-            {PROVIDERS.map(p => {
+          <div className="grid grid-cols-2 gap-6 mt-4">
+            {PROVIDERS.map((p) => {
               const d = stats[p.key] ?? { delivered:0, pending:0, rto:0, total:0 };
+
+              const gradient =
+                p.key === "dtdc"
+                  ? "from-blue-500 to-blue-700"
+                  : p.key === "delh"
+                  ? "from-orange-500 to-red-500"
+                  : p.key === "xb"
+                  ? "from-yellow-400 to-orange-400"
+                  : "from-purple-500 to-indigo-500";
 
               return (
                 <Link key={p.key} href={p.href}>
-                  <Card className="p-4 rounded-xl hover:shadow-xl transition transform hover:-translate-y-1 cursor-pointer">
+                  <div className={`p-5 rounded-2xl shadow-sm hover:shadow-xl transition cursor-pointer bg-white`}>
                     
-                    <div className="flex items-center justify-between mb-3">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="text-2xl">{providerIcon(p.key)}</div>
+                        <div className={`p-2 rounded-lg bg-gradient-to-br ${gradient} text-white text-xl`}>
+                          {providerIcon(p.key)}
+                        </div>
                         <div>
-                          <div className="text-lg font-semibold">{p.name}</div>
-                          <div className="text-xs text-gray-400">Total: {d.total ?? 0}</div>
+                          <div className="font-bold text-lg">{p.name}</div>
+                          <div className="text-xs text-gray-500">Total: {d.total}</div>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-400">Live</div>
+
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
+                        Live
+                      </span>
                     </div>
 
-                    <div className="space-y-2">
-                      <StatRow label="Delivered" value={d.delivered} color={COLORS.delivered}/>
-                      <StatRow label="Pending" value={d.pending} color={COLORS.pending}/>
-                      <StatRow label="RTO" value={d.rto} color={COLORS.rto}/>
+                    {/* Stats Pills */}
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="py-2 rounded-lg bg-green-50 text-green-700 font-semibold text-sm">
+                        {d.delivered}<div className="text-xs font-normal">Delivered</div>
+                      </div>
+                      <div className="py-2 rounded-lg bg-yellow-50 text-yellow-700 font-semibold text-sm">
+                        {d.pending}<div className="text-xs font-normal">Pending</div>
+                      </div>
+                      <div className="py-2 rounded-lg bg-red-50 text-red-700 font-semibold text-sm">
+                        {d.rto}<div className="text-xs font-normal">RTO</div>
+                      </div>
                     </div>
-
-                  </Card>
+                    
+                  </div>
                 </Link>
               );
             })}
           </div>
+
 
           {/* Middle row: Complaints + Pie */}
           <div className="grid grid-cols-12 gap-4">
@@ -265,6 +296,7 @@ export default function PremiumDashboard() {
             </div>
           </div>
         </div>
+        
         {/* RIGHT SIDEBAR */}
         <div className="col-span-4">
           <Card className="p-4 rounded-xl sticky top-6">
@@ -287,16 +319,45 @@ export default function PremiumDashboard() {
                 <div className="text-sm text-gray-500 p-4">No clients found</div>
               ) : (
                 filteredClients.map((c:any) => (
-                  <div key={c.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-white transition">
-                    <div>
-                      <div className="font-medium text-sm">{c.company_name}</div>
-                      <div className="text-xs text-gray-500">{c.email}</div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Link href={`/admin/dtdc/clients/${c.id}`}><Button size="sm" variant="outline">Open</Button></Link>
-                      <div className="text-xs text-gray-400">#{c.id}</div>
-                    </div>
-                  </div>
+                  <div
+  key={c.id}
+  className="
+    flex items-center justify-between 
+    p-3 rounded-xl 
+    bg-white shadow-sm 
+    hover:shadow-md hover:-translate-y-1 
+    transition-all
+  "
+>
+  {/* Left Side */}
+  <div className="flex items-center gap-3">
+    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-semibold">
+      {c.company_name?.slice(0, 2).toUpperCase()}
+    </div>
+
+    <div>
+      <div className="font-semibold text-sm text-gray-800">{c.company_name}</div>
+      <div className="text-xs text-gray-500">{c.email}</div>
+    </div>
+  </div>
+
+  {/* Right Side */}
+  <div className="flex flex-col items-end">
+    <Link href={`/admin/dtdc/clients/${c.id}`}>
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-7 px-3 text-xs border-blue-500 text-blue-600 hover:bg-blue-50"
+      >
+        Open
+      </Button>
+    </Link>
+
+    <div className="text-[10px] text-gray-400 mt-1">#{c.id}</div>
+  </div>
+</div>
+
+
                 ))
               )}
             </div>
@@ -323,33 +384,6 @@ export default function PremiumDashboard() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </Card>
-
-      {/* Recent consignments table */}
-      <Card className="p-4 rounded-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold">Recent Consignments</h3>
-          <Link href="/admin/consignments"><Button size="sm" variant="outline">View all</Button></Link>
-        </div>
-
-        <div className="border rounded-lg overflow-hidden">
-          {recent.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No recent consignments</div>
-          ) : (
-            recent.map((r:any) => (
-              <div key={r.id} className="flex items-center justify-between p-3 hover:bg-slate-50 transition">
-                <div>
-                  <div className="font-medium">AWB: {r.awb}</div>
-                  <div className="text-xs text-gray-500">Providers: {(r.providers || []).join(", ")}</div>
-                </div>
-                <div className="text-right text-sm">
-                  <div className="text-sm">{r.last_status}</div>
-                  <div className="text-xs text-gray-400">{new Date(r.lastUpdatedOn ?? r.last_updated_on ?? Date.now()).toLocaleString()}</div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
       </Card>
     </div>

@@ -13,8 +13,6 @@ import {
   Truck,
   Users,
   Settings,
-  ChevronDown,
-  ChevronRight,
   Menu,
   LogOut,
   Boxes,
@@ -193,7 +191,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
 function SectionLabel({ label }: any) {
   return (
-    <div className="px-3 text-[11px] uppercase tracking-wide text-gray-500">
+    <div className="px-3 text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
       {label}
     </div>
   );
@@ -203,9 +201,11 @@ function SidebarItem({ href, label, icon, active, isExpanded }: any) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition 
-        ${active ? "bg-blue-100 text-blue-700 shadow-sm" : "hover:bg-white/60"}
-      `}
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+      active
+        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+        : "hover:bg-blue-50 text-gray-700"
+    }`}
     >
       {icon}
       {isExpanded && <span>{label}</span>}

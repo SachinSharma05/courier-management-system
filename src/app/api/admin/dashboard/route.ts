@@ -13,27 +13,40 @@ export const revalidate = 120;
    - Separates Delivered, Pending, RTO
 ================================================================ */
 async function getProviderStats(provider: string) {
-  const result = await db.execute(sql`
-    SELECT
-      COUNT(*) AS total,
-      COUNT(*) FILTER (WHERE LOWER(last_status) LIKE '%deliver%') AS delivered,
-      COUNT(*) FILTER (WHERE LOWER(last_status) LIKE '%rto%') AS rto,
-      COUNT(*) FILTER (
-        WHERE LOWER(last_status) NOT LIKE '%deliver%'
-        AND LOWER(last_status) NOT LIKE '%rto%'
-      ) AS pending
-    FROM consignments
-    WHERE providers::jsonb @> ${JSON.stringify([provider])}::jsonb
+  const jsonLiteral = JSON.stringify([provider]);
+
+  // TOTAL
+  const totalRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM consignments 
+    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
   `);
+  const total = Number(totalRes.rows[0].count || 0);
 
-  const row = result.rows[0] || {};
+  // DELIVERED
+  const deliveredRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM consignments 
+    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
+    AND LOWER(last_status) LIKE '%deliver%'
+    AND LOWER(last_status) NOT LIKE '%undeliver%'
+    AND LOWER(last_status) NOT LIKE '%redeliver%'
+  `);
+  const delivered = Number(deliveredRes.rows[0].count || 0);
 
-  return {
-    total: Number(row.total || 0),
-    delivered: Number(row.delivered || 0),
-    pending: Number(row.pending || 0),
-    rto: Number(row.rto || 0),
-  };
+  // RTO
+  const rtoRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM consignments 
+    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
+    AND LOWER(last_status) LIKE '%rto%'
+  `);
+  const rto = Number(rtoRes.rows[0].count || 0);
+
+  // PENDING (derived, safest)
+  const pending = total - delivered - rto;
+
+  return { total, delivered, pending, rto };
 }
 
 /* ================================================================
@@ -179,29 +192,6 @@ export async function GET(req: Request) {
     const trendData = trendRows.rows ?? [];
 
     /* ------------------------------------------------------------
-       6) RECENT CONSIGNMENTS (latest 15 shipments)
-    ------------------------------------------------------------ */
-    const recent = await db
-      .select({
-        id: consignments.id,
-        awb: consignments.awb,
-        providers: consignments.providers,
-        last_status: consignments.lastStatus,
-        lastUpdatedOn: consignments.lastUpdatedOn,
-      })
-      .from(consignments)
-      .orderBy(desc(consignments.lastUpdatedOn))
-      .limit(15);
-
-      /* ------------------------------------------------------------
-       7) RETAIL Consignments
-    ------------------------------------------------------------ */
-      const retailBookings = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(consignments)
-      .where(eq(consignments.client_id, 1));
-
-    /* ------------------------------------------------------------
        FINAL RESPONSE OBJECT
     ------------------------------------------------------------ */
     return NextResponse.json({
@@ -221,11 +211,6 @@ export async function GET(req: Request) {
 
       // Trend line chart
       trend: trendData,
-
-      // Recent consignments
-      recent,
-
-      retailBookings: Number(retailBookings[0].count),
     });
 
   } catch (error: any) {

@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { ThemeProvider } from "next-themes";
 
 import "./globals.css";
 import { Inter } from "next/font/google";
@@ -16,10 +17,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={inter.className}>
         {/* Global Navbar (optional) */}
-        {/* <Navbar /> */}
-
-        {children}
-
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={true}
+        >
+          {children}
+        </ThemeProvider>
+        
         {/* Toast container */}
         <Toaster />
       </body>

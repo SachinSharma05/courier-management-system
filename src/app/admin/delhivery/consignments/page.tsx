@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import type { Consignment } from "@/interface/Delhivery";
+import toast from "react-hot-toast";
 
 function Badge({ children, color = "gray" }: any) {
   const map: Record<string, string> = {
@@ -97,8 +98,8 @@ export default function ConsignmentList() {
         const r = await fetch("/api/admin/delhivery/request-pickup", { method: "POST", body: JSON.stringify({ warehouse: "default", date, reference_awb: awb })});
         alert(JSON.stringify(await r.json(), null, 2));
       }
-    } catch (e: any) {
-      alert("Action failed: " + e?.message ?? e);
+    } catch (e) {
+      toast.error("Action failed");
     }
   }
 

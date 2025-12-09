@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
 import { sql } from "drizzle-orm";
+import { computeTAT } from "@/lib/tracking/utils";
 
 // ------------------------------
 // GET Handler (Fully Fixed)
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
     const status = url.searchParams.get("status")?.trim().toLowerCase() ?? "";
     const from = url.searchParams.get("from") ?? "";
     const to = url.searchParams.get("to") ?? "";
-    const tatFilter = url.searchParams.get("tat") ?? "all";
+    const tatFilter = (url.searchParams.get("tat") ?? "all").toLowerCase();
 
     const clientIdParam = url.searchParams.get("clientId");
     if (!clientIdParam)
@@ -93,18 +94,6 @@ export async function GET(req: Request) {
       : sql``;
 
     // ----------------------------------------------
-    // COUNT
-    // ----------------------------------------------
-    const countResult = await db.execute(sql`
-      SELECT COUNT(*) AS count
-      FROM consignments c
-      ${finalWhere}
-    `);
-
-    const totalCount = Number(countResult.rows[0].count ?? 0);
-    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-    // ----------------------------------------------
     // MAIN QUERY (timeline + filters)
     // ----------------------------------------------
     const rows = await db.execute(sql`
@@ -139,17 +128,20 @@ export async function GET(req: Request) {
       OFFSET ${offset}
     `);
 
+    const q = rows.rows ?? [];
+    const totalCount = q.length > 0 ? Number(q[0].total_count ?? 0) : 0;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
     // ----------------------------------------------
     // BUILD FINAL PAYLOAD
     // ----------------------------------------------
     const items = rows.rows
       .map((r: any) => {
-        const tat = computeTAT(r);
-        const movement = computeMovement(r.timeline ?? []);
-
-        // Apply TAT filter AFTER query (same as before)
-        if (tatFilter !== "all" && !tat.toLowerCase().includes(tatFilter)) {
-          return null;
+        if (tatFilter !== "all") {
+          // computeTAT signature kept same as your frontend utils expects:
+          // computeTAT(awb, booked_on, last_status)
+          const tat = computeTAT(r.awb, r.booked_on, r.last_status).toLowerCase();
+          if (!tat.includes(tatFilter)) return null;
         }
 
         return {
@@ -159,12 +151,11 @@ export async function GET(req: Request) {
           destination: r.destination,
           booked_on: r.booked_on,
           last_updated_on: r.last_updated_on,
-          timeline: r.timeline,
-          tat,
-          movement
+          timeline: r.timeline
+          // NOTE: intentionally not returning tat/movement — frontend computes those
         };
       })
-      .filter(Boolean);
+      .filter(Boolean); 
 
     return NextResponse.json({
       items,

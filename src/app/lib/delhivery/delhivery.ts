@@ -1,5 +1,4 @@
 // src/lib/delhivery.ts
-import fetch from "node-fetch";
 
 const BASE = process.env.DELHIVERY_API_BASE;
 const TOKEN = process.env.DELHIVERY_API_TOKEN;

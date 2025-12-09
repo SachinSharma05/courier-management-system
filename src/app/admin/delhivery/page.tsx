@@ -2,7 +2,84 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Package, Truck, ClipboardList, MapPin, FileDown, Repeat } from "lucide-react";
 
+/* --------------------
+   Subcomponents (declare outside render)
+   -------------------- */
+function StatCard({
+  label,
+  value,
+  color,
+  link,
+}: {
+  label: string;
+  value: any;
+  color: string;
+  link: string;
+}) {
+  return (
+    <Link href={link}>
+      <div
+        className="
+          cursor-pointer p-6 rounded-xl 
+          bg-white shadow-sm border 
+          hover:shadow-xl hover:-translate-y-1 
+          transition-all duration-200
+        "
+      >
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className={`h-3 w-3 rounded-full ${color}`}></span>
+            <span className="text-lg font-medium">{label}</span>
+          </div>
+          <span className="text-2xl font-bold">{value}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function ToolCard({
+  title,
+  desc,
+  href,
+  icon,
+}: {
+  title: string;
+  desc: string;
+  href: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link href={href}>
+      <div
+        className="
+          p-6 rounded-xl bg-white border shadow-sm 
+          hover:shadow-xl hover:-translate-y-1 
+          transition-all duration-200 cursor-pointer
+        "
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <div
+            className="
+              p-2 rounded-lg bg-blue-50 text-blue-700 
+              shadow-sm border border-blue-100
+            "
+          >
+            {icon}
+          </div>
+          <h3 className="text-lg font-semibold">{title}</h3>
+        </div>
+        <p className="text-sm text-gray-600">{desc}</p>
+      </div>
+    </Link>
+  );
+}
+
+/* --------------------
+   Page Component
+   -------------------- */
 export default function DelhiveryDashboard() {
   const [stats, setStats] = useState<any>(null);
 
@@ -12,116 +89,104 @@ export default function DelhiveryDashboard() {
       .then((data) => setStats(data));
   }, []);
 
-  if (!stats) return <div className="p-8">Loading…</div>;
-
-  const card = (label: string, value: any, color: string, link: string) => (
-    <Link href={link}>
-      <div className="cursor-pointer border rounded-xl p-6 shadow-sm bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-200">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className={`h-3 w-3 rounded-full ${color}`}></span>
-            <span className="text-lg font-medium">{label}</span>
-          </div>
-          <span className="text-2xl font-semibold">{value}</span>
-        </div>
-      </div>
-    </Link>
-  );
+  if (!stats) return <div className="p-8 text-gray-600">Loading…</div>;
 
   return (
-    <div className="p-8 space-y-10">
-
-      {/* Heading */}
+    <div className="p-4 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Delhivery Provider Dashboard
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight">Delhivery Dashboard</h1>
 
         <Link
           href="/admin/providers"
-          className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition"
+          className="
+            px-4 py-2 rounded-lg bg-gradient-to-r 
+            from-blue-600 to-blue-700 
+            text-white shadow-md 
+            hover:shadow-lg hover:-translate-y-0.5 
+            transition
+          "
         >
           Back to Providers
         </Link>
       </div>
 
-      {/* Stats */}
+      {/* Shipment Stats */}
       <div>
-        <h2 className="text-xl font-semibold mb-3">Shipment Overview</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {card("Total Shipments", stats.total, "bg-blue-500", "/admin/providerConsignments/delhivery?status=all")}
-          {card("Delivered", stats.delivered, "bg-green-500", "/admin/providerConsignments/delhivery?status=delivered")}
-          {card("Pending", stats.pending, "bg-yellow-500", "/admin/providerConsignments/delhivery?status=pending")}
-          {card("RTO", stats.rto, "bg-red-500", "/admin/providerConsignments/delhivery?status=rto")}
+          <StatCard
+            label="Total Shipments"
+            value={stats.total}
+            color="bg-blue-500"
+            link="/admin/providerConsignments/delhivery?status=all"
+          />
+          <StatCard
+            label="Delivered"
+            value={stats.delivered}
+            color="bg-green-500"
+            link="/admin/providerConsignments/delhivery?status=delivered"
+          />
+          <StatCard
+            label="Pending"
+            value={stats.pending}
+            color="bg-yellow-500"
+            link="/admin/providerConsignments/delhivery?status=pending"
+          />
+          <StatCard
+            label="RTO"
+            value={stats.rto}
+            color="bg-red-500"
+            link="/admin/providerConsignments/delhivery?status=rto"
+          />
         </div>
       </div>
 
-      {/* Tools Section */}
+      {/* Tools */}
       <div>
         <h2 className="text-xl font-semibold mb-3">Delhivery Tools</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <ToolCard
+            title="Create Shipment"
+            desc="Book a new Delhivery shipment."
+            href="/admin/delhivery/create"
+            icon={<Package size={20} />}
+          />
 
-          {/* Create Shipment */}
-          <Link href="/admin/delhivery/create">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Create Shipment</h3>
-              <p className="text-sm text-gray-600">
-                Book a new Delhivery shipment.
-              </p>
-            </div>
-          </Link>
+          <ToolCard
+            title="Track Shipment"
+            desc="Track any Delhivery consignment using AWB."
+            href="/admin/delhivery/track"
+            icon={<Truck size={20} />}
+          />
 
-          {/* Track Shipment */}
-          <Link href="/admin/delhivery/track">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Track Shipment</h3>
-              <p className="text-sm text-gray-600">
-                Track any Delhivery consignment using AWB.
-              </p>
-            </div>
-          </Link>
+          <ToolCard
+            title="Request Pickup"
+            desc="Schedule pickup from warehouse."
+            href="/admin/delhivery/pickup"
+            icon={<ClipboardList size={20} />}
+          />
 
-          {/* Request Pickup */}
-          <Link href="/admin/delhivery/pickup">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Request Pickup</h3>
-              <p className="text-sm text-gray-600">
-                Schedule pickup from warehouse.
-              </p>
-            </div>
-          </Link>
+          <ToolCard
+            title="Fetch Waybill"
+            desc="Fetch AWB details for shipments."
+            href="/admin/delhivery/waybill"
+            icon={<MapPin size={20} />}
+          />
 
-          {/* Fetch Waybill */}
-          <Link href="/admin/delhivery/waybill">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Fetch Waybill</h3>
-              <p className="text-sm text-gray-600">
-                Fetch AWB details for shipments.
-              </p>
-            </div>
-          </Link>
+          <ToolCard
+            title="Download Label"
+            desc="Generate & download shipping labels."
+            href="/admin/delhivery/label"
+            icon={<FileDown size={20} />}
+          />
 
-          {/* Download Label */}
-          <Link href="/admin/delhivery/label">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Download Label</h3>
-              <p className="text-sm text-gray-600">
-                Generate and download shipping labels.
-              </p>
-            </div>
-          </Link>
-
-          {/* Update Shipment */}
-          <Link href="/admin/delhivery/update">
-            <div className="p-6 rounded-xl bg-white border shadow-sm hover:shadow-lg hover:-translate-y-1 transition cursor-pointer">
-              <h3 className="text-lg font-semibold mb-1">Update Shipment</h3>
-              <p className="text-sm text-gray-600">
-                Modify shipment details if required.
-              </p>
-            </div>
-          </Link>
-
+          <ToolCard
+            title="Update Shipment"
+            desc="Modify shipment details if required."
+            href="/admin/delhivery/update"
+            icon={<Repeat size={20} />}
+          />
         </div>
       </div>
     </div>

@@ -148,3 +148,22 @@
 .hover-soft {
   @apply transition duration-150 hover:bg-slate-100;
 }
+
+/* Hide Scrollbar but keep scroll functionality */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.sidebar-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.18s ease-out;
+}

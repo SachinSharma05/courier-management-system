@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function DeleteProviderButton({ id }: { id: number }) {
+export default function DeleteProviderButton({ id, className = "" }: { id: number; className?: string }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 

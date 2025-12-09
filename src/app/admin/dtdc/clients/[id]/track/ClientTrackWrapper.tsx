@@ -45,6 +45,7 @@ import {
   computeMovement,
   isDelivered,
 } from "@/lib/tracking/utils";
+import { statusBadgeUI } from "@/lib/tracking/statusUtils";
 
 import { exportConsignmentsToExcel } from "@/lib/export/excel";
 import { downloadMergedLabelForRow } from "@/lib/pdf/label-utils";
@@ -219,181 +220,130 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
     return tatBadgeUI(t); // identical styling rules
   }
 
-  function statusBadgeUI(status?: string | null) {
-  if (!status)
-    return (
-      <span className="px-3 py-1 text-sm rounded bg-gray-200 text-gray-700">
-        -
-      </span>
-    );
+  {/* ---------- UI (fixed: restores inner scroll exactly) ---------- */}
+return (
+  <div className={loading ? "pointer-events-none opacity-50" : ""}>
+    <div className="space-y-4 p-2 md:p-4">
 
-  const s = status.trim().toLowerCase();
-
-  // ---------- Strict matching first ----------
-  if (s === "delivered")
-    return <span className="px-3 py-1 text-sm rounded bg-green-200 text-green-800">
-      Delivered
-    </span>;
-
-  if (s === "rto" || s === "return to origin")
-    return <span className="px-3 py-1 text-sm rounded bg-red-200 text-red-800">
-      RTO
-    </span>;
-
-  if (s === "in transit")
-    return <span className="px-3 py-1 text-sm rounded bg-yellow-200 text-yellow-800">
-      In Transit
-    </span>;
-
-  if (s === "out for delivery")
-    return <span className="px-3 py-1 text-sm rounded bg-blue-200 text-blue-800">
-      Out For Delivery
-    </span>;
-
-  if (s === "received at delivery centre")
-    return <span className="px-3 py-1 text-sm rounded bg-purple-200 text-purple-800">
-      Received at Delivery Centre
-    </span>;
-
-  if (s === "reached at destination")
-    return <span className="px-3 py-1 text-sm rounded bg-orange-200 text-orange-800">
-      Reached at Destination
-    </span>;
-
-  if (s === "weekly off")
-    return <span className="px-3 py-1 text-sm rounded bg-gray-300 text-gray-800">
-      Weekly Off
-    </span>;
-
-  if (s === "undelivered")
-    return <span className="px-3 py-1 text-sm rounded bg-rose-200 text-rose-800">
-      Undelivered
-    </span>;
-
-  if (s === "pending")
-    return <span className="px-3 py-1 text-sm rounded bg-amber-200 text-amber-900">
-      Pending
-    </span>;
-
-  // ---------- Default fallback ----------
-  return (
-    <span className="px-3 py-1 text-sm rounded bg-yellow-100 text-yellow-700">
-      {status}
-    </span>
-  );
-}
-
-  // ---------- UI ----------
-  return (
-    <div className={loading ? "pointer-events-none opacity-50" : ""}>
-      <div className="space-y-2 px-0 md:px-2 lg:px-2 py-0">
-        {/* header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Track Consignments</h1>
-            <p className="text-sm text-muted-foreground mt-1">Search, filter, manage, export & analyze your tracking data.</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              disabled={loading}
-              onClick={refreshTracking}
-              className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="white"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                  </svg>
-                  Refreshing...
-                </span>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Click me to refresh status
-                </>
-              )}
-            </Button>
-
-            <Button
-              variant="default"
-              onClick={() => {
-                try {
-                  exportConsignmentsToExcel(rows);
-                  toast.success("Excel exported");
-                } catch {
-                  toast.error("Unable to export");
-                }
-              }}
-            >
-              Export Excel
-            </Button>
-          </div>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Track Consignments</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Search, filter, manage, export & analyze your tracking data.
+          </p>
         </div>
 
-        {/* filters */}
-        <Card className="shadow-sm border">
-          <CardContent className="py-0 flex flex-wrap gap-4 items-center">
-            <Input placeholder="Search AWB" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} className="w-56" />
+        <div className="flex items-center gap-3">
+          <Button
+            disabled={loading}
+            onClick={refreshTracking}
+            className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+                </svg>
+                Refreshing…
+              </span>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Refresh Status
+              </>
+            )}
+          </Button>
 
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="in transit">In Transit</SelectItem>
-                <SelectItem value="out for delivery">Out For Delivery</SelectItem>
-                <SelectItem value="reached at destination">Reached At Destination</SelectItem>
-                <SelectItem value="received at delivery centre">Received At Delivery Centre</SelectItem>
-                <SelectItem value="rto">RTO</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="weekly off">Weekly Off</SelectItem>
-                <SelectItem value="undelivered">Undelivered</SelectItem>
-              </SelectContent>
-            </Select>
+          <Button
+            variant="default"
+            className="h-10 px-5 rounded-lg shadow"
+            onClick={() => {
+              try {
+                exportConsignmentsToExcel(rows);
+                toast.success("Excel exported");
+              } catch {
+                toast.error("Unable to export");
+              }
+            }}
+          >
+            Export Excel
+          </Button>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">From</span>
-              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
-              <span className="text-sm text-muted-foreground">To</span>
-              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
-            </div>
+      {/* FILTER BAR */}
+      <Card className="border shadow-sm rounded-xl">
+        <CardContent className="py-0 flex flex-wrap items-center gap-4">
+          <Input
+            placeholder="Search AWB"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-56 rounded-lg"
+          />
 
-            <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="TAT" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="sensitive">Sensitive</SelectItem>
-              </SelectContent>
-            </Select>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-40 rounded-lg">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="in transit">In Transit</SelectItem>
+              <SelectItem value="out for delivery">Out For Delivery</SelectItem>
+              <SelectItem value="reached at destination">Reached At Destination</SelectItem>
+              <SelectItem value="received at delivery centre">Received At Delivery Centre</SelectItem>
+              <SelectItem value="rto">RTO</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="weekly off">Weekly Off</SelectItem>
+              <SelectItem value="undelivered">Undelivered</SelectItem>
+            </SelectContent>
+          </Select>
 
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Page Size</span>
-              <Input type="number" className="w-20" value={pageSize} onChange={(e) => { setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE))); setPage(1); }} />
-            </div>
-          </CardContent>
-        </Card>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">From</span>
+            <Input type="date" className="rounded-lg" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+            <span className="text-sm text-gray-500">To</span>
+            <Input type="date" className="rounded-lg" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+          </div>
 
-        {/* table card (fixed height wrapper) */}
-        <Card className="shadow-sm border">
-          <CardContent className="p-1">
-          {/* Outer wrapper must lock height AND prevent ScrollArea from expanding */}
+          <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-40 rounded-lg">
+              <SelectValue placeholder="TAT" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="warning">Warning</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="sensitive">Sensitive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm text-gray-500">Page Size</span>
+            <Input
+              type="number"
+              className="w-20 rounded-lg"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE)));
+                setPage(1);
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* TABLE CARD — KEEP the original fixed-height wrapper to restore inner scroll */}
+      <Card className="shadow-sm border rounded-xl">
+        <CardContent className="p-0">
+          {/* IMPORTANT: restore exact behavior — outer wrapper locks height and prevents ScrollArea from expanding */}
           <div className="h-[90vh] flex flex-col overflow-hidden">
-            {/* Scrollable body */}
             <ScrollArea className="flex-1 overflow-auto">
               <Table className="text-sm w-full">
 
-                {/* HEADER INSIDE SCROLL AREA (sticky + aligned) */}
-                <TableHeader className="bg-slate-50 sticky top-0 z-20">
+                {/* sticky header */}
+                <TableHeader className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                   <TableRow>
                     <TableHead className="w-[140px]">AWB</TableHead>
                     <TableHead className="w-[160px]">Status</TableHead>
@@ -409,11 +359,10 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                   </TableRow>
                 </TableHeader>
 
-                {/* BODY — perfectly aligned due to fixed widths */}
                 <TableBody>
                   {rows.length === 0 && (
                     <TR>
-                      <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={12} className="py-10 text-center text-gray-500">
                         {isFetching ? "Loading..." : "No results found"}
                       </TableCell>
                     </TR>
@@ -429,51 +378,43 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                     );
 
                     return (
-                      <TR key={r.awb} className={`${delivered ? "bg-green-50" : ""} hover:bg-muted/40`}>
-
-                        <TableCell className="w-[140px] font-medium">{r.awb}</TableCell>
+                      <TR
+                        key={r.awb}
+                        className={`${delivered ? "bg-green-50" : ""} hover:bg-gray-100 transition`}
+                      >
+                        <TableCell className="font-medium w-[140px]">{r.awb}</TableCell>
                         <TableCell className="w-[160px]">{statusBadgeUI(r.last_status ?? "-")}</TableCell>
                         <TableCell className="w-[140px]">{r.booked_on ?? "-"}</TableCell>
                         <TableCell className="w-[160px]">{r.last_updated_on ?? "-"}</TableCell>
                         <TableCell className="w-[140px]">{r.origin ?? "-"}</TableCell>
                         <TableCell className="w-[160px]">{r.destination ?? "-"}</TableCell>
-
                         <TableCell className="w-[120px]">{tatBadgeUI(tat)}</TableCell>
                         <TableCell className="w-[120px]">{moveBadgeUI(move)}</TableCell>
 
-                        {/* Timeline */}
+                        {/* Timeline (sheet) */}
                         <TableCell className="w-[80px]">
                           <Sheet>
                             <SheetTrigger asChild>
-                              <button className="text-sm underline text-primary">View</button>
+                              <button className="text-primary underline text-sm">View</button>
                             </SheetTrigger>
-
                             <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
                               <SheetHeader>
                                 <SheetTitle>Timeline — {r.awb}</SheetTitle>
                                 <SheetDescription>Complete movement history</SheetDescription>
                               </SheetHeader>
 
-                              <div className="mt-6 max-h-[75vh] overflow-y-auto pr-2 space-y-6">
+                              <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-6 pr-2">
                                 {r.timeline?.length ? (
                                   r.timeline.map((t: any, i: number) => (
                                     <div key={i} className="border-b pb-4">
-                                      <div className="text-xs text-muted-foreground">
-                                        {t.actionDate} {t.actionTime}
-                                      </div>
+                                      <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
                                       <div className="font-semibold">{t.action}</div>
-                                      <div className="text-sm text-muted-foreground">
-                                        {t.origin || t.destination}
-                                      </div>
-                                      {t.remarks && (
-                                        <div className="text-xs text-muted-foreground mt-1">
-                                          {t.remarks}
-                                        </div>
-                                      )}
+                                      <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
+                                      {t.remarks && <div className="text-xs text-gray-500 mt-1">{t.remarks}</div>}
                                     </div>
                                   ))
                                 ) : (
-                                  <p className="text-muted-foreground">No timeline available.</p>
+                                  <p className="text-gray-500">No timeline available.</p>
                                 )}
                               </div>
                             </SheetContent>
@@ -482,14 +423,18 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
                         {/* PDF */}
                         <TableCell className="w-[80px]">
-                          <Button size="sm" variant="outline" onClick={async () => {
-                            try {
-                              await downloadMergedLabelForRow(r);
-                              toast.success("Label downloaded");
-                            } catch (e) {
-                              toast.error("Failed generating label");
-                            }
-                          }}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-lg"
+                            onClick={async () => {
+                              try {
+                                await downloadMergedLabelForRow(r);
+                                toast.success("Label downloaded");
+                              } catch {
+                                toast.error("Failed generating label");
+                              }
+                            }}
                           >
                             PDF
                           </Button>
@@ -499,7 +444,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                         <TableCell className="w-[100px]">
                           <Sheet>
                             <SheetTrigger asChild>
-                              <Button size="sm" variant="secondary">Details</Button>
+                              <Button size="sm" variant="secondary" className="rounded-lg">Details</Button>
                             </SheetTrigger>
 
                             <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
@@ -523,95 +468,78 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                                     <div className="space-y-4">
                                       {r.timeline.map((t: any, i: number) => (
                                         <div key={i} className="border-b pb-3">
-                                          <div className="text-xs text-muted-foreground">
-                                            {t.actionDate} {t.actionTime}
-                                          </div>
+                                          <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
                                           <div className="font-medium">{t.action}</div>
-                                          <div className="text-sm text-muted-foreground">
-                                            {t.origin || t.destination}
-                                          </div>
+                                          <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
                                         </div>
                                       ))}
                                     </div>
                                   ) : (
-                                    <p className="text-muted-foreground">No timeline available.</p>
+                                    <p className="text-gray-500">No timeline available.</p>
                                   )}
                                 </div>
                               </div>
                             </SheetContent>
                           </Sheet>
                         </TableCell>
-
                       </TR>
                     );
                   })}
                 </TableBody>
-
               </Table>
             </ScrollArea>
           </div>
         </CardContent>
-        </Card>
+      </Card>
 
-        {/* Pagination wrapper (OUTSIDE the Card containing the ScrollArea) */}
-        <div className="mt-6 flex items-center justify-between w-full">
-          <div className="text-sm text-muted-foreground">
-            Showing {rows.length} of {totalCount}
-          </div>
+      {/* PAGINATION (outside the fixed-height card) */}
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-sm text-gray-500">
+          Showing {rows.length} of {totalCount}
+        </div>
 
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage(1) }}>
-              First
-            </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
 
-            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => { setPage((p) => Math.max(1, p - 1)) }}>
-              Prev
-            </Button>
+          {pageNumbers[0] > 1 && <span className="px-1">…</span>}
 
-            {pageNumbers[0] > 1 && <span className="px-1">…</span>}
+          {pageNumbers.map((p) => (
+            <button
+              key={p}
+              onClick={() => { setPage(p); fetchPage(true); }}
+              className={`px-3 py-1 rounded-lg text-sm ${p === page ? "bg-primary text-white" : "bg-white border"}`}
+            >
+              {p}
+            </button>
+          ))}
 
-            {pageNumbers.map((p) => (
-              <button
-                key={p}
-                onClick={() => { setPage(p); fetchPage(true); }}
-                className={`px-3 py-1 rounded ${p === page ? "bg-primary text-white" : "bg-white border"}`}
-              >
-                {p}
-              </button>
-            ))}
+          {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
 
-            {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
+          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
 
-            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage((p) => Math.min(totalPages, p + 1)) }}>
-              Next
-            </Button>
-
-            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => { setPage(totalPages) }}>
-              Last
-            </Button>
-
-            {/* quick jump */}
-            <div className="ml-4 flex items-center gap-2">
-              <span className="text-sm">Jump</span>
-              <Input
-                type="number"
-                min={1}
-                max={totalPages}
-                className="w-20"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const v = Number((e.target as HTMLInputElement).value || 1);
-                    const pg = Math.max(1, Math.min(totalPages, v));
-                    setPage(pg);
-                    fetchPage(true);
-                  }
-                }}
-              />
-            </div>
+          <div className="ml-4 flex items-center gap-2">
+            <span className="text-sm text-gray-700">Jump</span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              className="w-20 rounded-lg"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const v = Number((e.target as HTMLInputElement).value || 1);
+                  const pg = Math.max(1, Math.min(totalPages, v));
+                  setPage(pg);
+                  fetchPage(true);
+                }
+              }}
+            />
           </div>
         </div>
       </div>
     </div>
-    
-  );
+  </div>
+);
+
 }

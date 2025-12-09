@@ -94,6 +94,18 @@ export async function GET(req: Request) {
       : sql``;
 
     // ----------------------------------------------
+    // COUNT
+    // ----------------------------------------------
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*) AS count
+      FROM consignments c
+      ${finalWhere}
+    `);
+
+    const totalCount = Number(countResult.rows[0].count ?? 0);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    // ----------------------------------------------
     // MAIN QUERY (timeline + filters)
     // ----------------------------------------------
     const rows = await db.execute(sql`
@@ -129,8 +141,6 @@ export async function GET(req: Request) {
     `);
 
     const q = rows.rows ?? [];
-    const totalCount = q.length > 0 ? Number(q[0].total_count ?? 0) : 0;
-    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
     // ----------------------------------------------
     // BUILD FINAL PAYLOAD

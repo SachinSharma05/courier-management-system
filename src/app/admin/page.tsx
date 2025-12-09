@@ -51,7 +51,7 @@ const PROVIDERS = [
   { key: "dtdc", name: "DTDC", href: "/admin/dtdc" },
   { key: "delh", name: "Delhivery", href: "/admin/delhivery" },
   { key: "xb", name: "XpressBees", href: "/admin/xpressbees" },
-  { key: "aramax", name: "Aramex", href: "/admin/aramex" },
+  { key: "maruti", name: "Maruti", href: "/admin/maruti" },
 ];
 
 const COLORS = {
@@ -67,7 +67,6 @@ export default function PremiumDashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
-  const [retail, setRetail] = useState<number>();
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
 
@@ -116,7 +115,7 @@ export default function PremiumDashboard() {
   });
 
   return (
-    <div className="min-h-screen p-2 bg-slate-50">
+    <div className="min-h-screen p-4 space-y-6 bg-slate-50">
       {/* HERO */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
@@ -138,40 +137,40 @@ export default function PremiumDashboard() {
           {/* KPI Grid */}
           <div className="grid grid-cols-4 gap-6">
             {/* REVENUE */}
-            {/* <Card className="p-5 rounded-2xl card-glass">
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Total Revenue</div>
               <div className="mt-2 text-3xl font-extrabold title-gradient">
                 ₹<Counter value={stats.billing?.totalRevenue ?? 0} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Monthly Revenue Insights</div>
-            </Card> */}
+            </Card>
 
             {/* RETAIL BOOKINGS */}
-            {/* <Card className="p-5 rounded-2xl card-glass">
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Retail Bookings</div>
               <div className="mt-2 text-3xl font-extrabold text-indigo-600">
-                <Counter value={retail ?? 0} />
+                <Counter value={50} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Counter Bookings</div>
-            </Card> */}
+            </Card>
 
             {/* AVERAGE PRICE */}
-            {/* <Card className="p-5 rounded-2xl card-glass">
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Average Price / Unit</div>
               <div className="mt-2 text-3xl font-extrabold text-amber-600">
                 ₹<Counter value={42} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Estimated</div>
-            </Card> */}
+            </Card>
 
             {/* OPEN COMPLAINTS */}
-            {/* <Card className="p-5 rounded-2xl card-glass">
+            <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Open Complaints</div>
               <div className="mt-2 text-3xl font-extrabold text-red-600">
                 <Counter value={(complaints || []).filter((c:any)=>c.status==='open').length} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Action Required</div>
-            </Card> */}
+            </Card>
           </div>
 
           {/* Provider cards row */}

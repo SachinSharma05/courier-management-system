@@ -372,7 +372,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                 <SelectItem value="all">All</SelectItem>
                 <SelectItem value="warning">Warning</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="very critical">Very Critical</SelectItem>
+                <SelectItem value="sensitive">Sensitive</SelectItem>
               </SelectContent>
             </Select>
 
@@ -385,7 +385,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
 
         {/* table card (fixed height wrapper) */}
         <Card className="shadow-sm border">
-          <CardContent className="p-0">
+          <CardContent className="p-1">
           {/* Outer wrapper must lock height AND prevent ScrollArea from expanding */}
           <div className="h-[90vh] flex flex-col overflow-hidden">
             {/* Scrollable body */}

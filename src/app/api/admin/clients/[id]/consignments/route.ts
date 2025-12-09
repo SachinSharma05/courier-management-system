@@ -3,37 +3,6 @@ import { db } from "@/app/db/postgres";
 import { sql } from "drizzle-orm";
 
 // ------------------------------
-// Helpers
-// ------------------------------
-function computeTAT(r: any) {
-  const rules: Record<string, number> = { D: 3, M: 5, N: 7, I: 10 };
-  const prefix = r.awb?.charAt(0)?.toUpperCase();
-
-  if (!r.booked_on) return "On Time";
-
-  const allowed = rules[prefix as string] ?? 5;
-  const age = Math.floor((Date.now() - new Date(r.booked_on).getTime()) / 86400000);
-
-  if (age > allowed + 3) return "Very Critical";
-  if (age > allowed) return "Critical";
-  if (age >= allowed - 1) return "Warning";
-  return "On Time";
-}
-
-function computeMovement(timeline: any[]) {
-  if (!timeline.length) return "On Time";
-
-  const last = timeline[0];
-  const ts = new Date(`${last.actionDate}T${last.actionTime ?? "00:00:00"}`).getTime();
-  const hours = Math.floor((Date.now() - ts) / (3600 * 1000));
-
-  if (hours >= 72) return "Stuck (72+ hrs)";
-  if (hours >= 48) return "Slow (48 hrs)";
-  if (hours >= 24) return "Slow (24 hrs)";
-  return "On Time";
-}
-
-// ------------------------------
 // GET Handler (Fully Fixed)
 // ------------------------------
 export async function GET(req: Request) {

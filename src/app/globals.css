@@ -120,3 +120,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+.input {
+  @apply w-full p-2 border rounded-lg focus:outline-none focus:ring;
+}
+
+.btn-primary {
+  @apply px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition;
+}

@@ -21,7 +21,7 @@ export default function DtdcDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
         {/* Total */}
-        <Link href="/admin/dtdc/clients/track?status=all">
+        <Link href={`/admin/providerTrack/dtdc?status=all`}>
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -34,7 +34,7 @@ export default function DtdcDashboard() {
         </Link>
 
         {/* Delivered */}
-        <Link href="/admin/dtdc/clients/track?status=delivered">
+        <Link href={`/admin/providerTrack/dtdc?status=delivered`}>
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function DtdcDashboard() {
         </Link>
 
         {/* Pending */}
-        <Link href="/admin/dtdc/clients/track?status=pending">
+        <Link href={`/admin/providerTrack/dtdc?status=pending`}>
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">
@@ -60,7 +60,7 @@ export default function DtdcDashboard() {
         </Link>
 
         {/* RTO */}
-        <Link href="/admin/dtdc/clients/track?status=rto">
+        <Link href={`/admin/providerTrack/dtdc?status=rto`}>
           <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
             <div className="flex justify-between">
               <span className="text-lg font-semibold flex items-center gap-2">

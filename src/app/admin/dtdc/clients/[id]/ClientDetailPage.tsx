@@ -52,14 +52,14 @@ export default function ClientDetailPage({ id }: { id: string }) {
       <div className="flex gap-3 pb-2 border-b">
 
         <Link href={`/admin/dtdc/clients/${id}/track`}>
-          <Button variant={tab === "track" ? "default" : "outline"}>Track</Button>
+          <Button variant={tab === "track" ? "default" : "outline"}>Track Consignments</Button>
         </Link>
 
         <Link href={`/admin/dtdc/clients/${id}/book`}>
           <Button
             variant={tab === "book" ? "default" : "outline"}
           >
-            Book
+            Book Shipment
           </Button>
         </Link>
         
@@ -67,7 +67,7 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <Button
             variant={tab === "bulk" ? "default" : "outline"}
           >
-            Bulk Book
+            Bulk Book Shipment
           </Button>
         </Link>
         
@@ -75,14 +75,46 @@ export default function ClientDetailPage({ id }: { id: string }) {
           <Button
             variant={tab === "cancel" ? "default" : "outline"}
           >
-            Cancel AWB
+            Cancel Shipment
+          </Button>
+        </Link>
+
+        <Link href={`/admin/dtdc/clients/${id}/cancel`}>
+          <Button
+            variant={tab === "cancel" ? "default" : "outline"}
+          >
+            Pincode Serviceability
+          </Button>
+        </Link>
+
+        <Link href={`/admin/dtdc/clients/${id}/cancel`}>
+          <Button
+            variant={tab === "cancel" ? "default" : "outline"}
+          >
+            Reports
+          </Button>
+        </Link>
+
+        <Link href={`/admin/dtdc/clients/${id}/cancel`}>
+          <Button
+            variant={tab === "cancel" ? "default" : "outline"}
+          >
+            Edit Client
+          </Button>
+        </Link>
+
+        <Link href={`/admin/dtdc/clients/${id}/cancel`}>
+          <Button
+            variant={tab === "cancel" ? "default" : "outline"}
+          >
+            Edit Credentials
           </Button>
         </Link>
       </div>
 
       {/* PENDING SHIPMENTS */}
       <Card className="p-5 mt-6 border rounded-lg shadow-sm">
-        <h2 className="text-xl font-semibold mb-4">Pending Shipments</h2>
+        <h2 className="text-xl font-semibold">Pending Shipments</h2>
 
         {loadingPending ? (
           <div className="text-gray-500 p-4">Loading pending consignments...</div>

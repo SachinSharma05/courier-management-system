@@ -41,31 +41,35 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
   return (
     <aside
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      className={`
-        fixed left-0 top-0 h-screen z-50 backdrop-blur-xl 
-        bg-[rgba(255,255,255,0.75)] border-r border-gray-200
-        shadow-[0_8px_32px_rgba(0,0,0,0.1)]
-        transition-all duration-300 ease-in-out flex flex-col
-        ${isExpanded ? SIDEBAR_WIDE : SIDEBAR_NARROW}
-      `}
-    >
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
-        {isExpanded && (
-          <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Admin Panel
-          </span>
-        )}
+  onMouseEnter={() => setHovering(true)}
+  onMouseLeave={() => setHovering(false)}
+  className={`
+    fixed left-0 top-0 h-screen z-50
+    bg-gradient-to-b from-[#0f172a] via-[#1e3a8a] to-[#1e40af]
+    border-r border-white/10
+    shadow-xl shadow-black/20
+    text-white
+    transition-all duration-300 ease-in-out flex flex-col
+    ${isExpanded ? SIDEBAR_WIDE : SIDEBAR_NARROW}
+  `}
+>
 
-        <button
-          onClick={() => setSidebarOpen((s) => !s)}
-          className="p-2 rounded-lg hover:bg-white/40 transition"
-        >
-          <Menu size={20} />
-        </button>
-      </div>
+      {/* HEADER */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+  {isExpanded && (
+    <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent drop-shadow-sm">
+      Admin Panel
+    </span>
+  )}
+
+  <button
+    onClick={() => setSidebarOpen((s) => !s)}
+    className="p-2 rounded-lg hover:bg-white/10 transition text-white/80 hover:text-white"
+  >
+    <Menu size={20} />
+  </button>
+</div>
+
 
       {/* NAVIGATION */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-6">
@@ -104,7 +108,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
         <SidebarItem
           href="/admin/aramex"
-          label="Aramex"
+          label="Maruti"
           icon={<Package size={20} className="text-yellow-500" />}
           active={pathname.startsWith("/admin/aramex")}
           isExpanded={isExpanded}
@@ -173,16 +177,17 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
       </nav>
 
       {/* FOOTER */}
-      <div className="border-t border-gray-200 px-4 py-4 mt-auto">
-        <button
-          onClick={logout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg 
-            text-red-600 hover:bg-red-50 transition"
-        >
-          <LogOut size={20} />
-          {isExpanded && <span>Logout</span>}
-        </button>
-      </div>
+      <div className="border-t border-white/10 px-4 py-4 mt-auto">
+  <button
+    onClick={logout}
+    className="flex items-center gap-3 w-full px-3 py-2 rounded-lg 
+      text-red-300 hover:text-red-400 hover:bg-red-900/20 transition"
+  >
+    <LogOut size={20} />
+    {isExpanded && <span>Logout</span>}
+  </button>
+</div>
+
     </aside>
   );
 }
@@ -191,7 +196,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
 function SectionLabel({ label }: any) {
   return (
-    <div className="px-3 text-[10px] uppercase tracking-wider text-gray-400 font-semibold">
+    <div className="px-3 text-[10px] uppercase tracking-wide text-white/40 font-semibold">
       {label}
     </div>
   );
@@ -201,14 +206,27 @@ function SidebarItem({ href, label, icon, active, isExpanded }: any) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
-      active
-        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
-        : "hover:bg-blue-50 text-gray-700"
-    }`}
+      className={`
+        group flex items-center gap-3 px-3 py-2 rounded-lg relative
+        transition-all duration-200
+        ${active 
+          ? "bg-white/20 text-white shadow-sm" 
+          : "text-white/70 hover:text-white hover:bg-white/10"
+        }
+      `}
     >
-      {icon}
-      {isExpanded && <span>{label}</span>}
+      {/* Active Left Indicator */}
+      {active && (
+        <span className="absolute left-0 top-0 h-full w-[3px] bg-white rounded-r-lg shadow-md"></span>
+      )}
+
+      {/* Icon */}
+      <span className="group-hover:scale-110 transition-transform duration-200">
+        {icon}
+      </span>
+
+      {/* Label (only visible when expanded) */}
+      {isExpanded && <span className="text-sm font-medium">{label}</span>}
     </Link>
   );
 }

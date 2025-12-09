@@ -138,40 +138,40 @@ export default function PremiumDashboard() {
           {/* KPI Grid */}
           <div className="grid grid-cols-4 gap-6">
             {/* REVENUE */}
-            <Card className="p-5 rounded-2xl card-glass">
+            {/* <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Total Revenue</div>
               <div className="mt-2 text-3xl font-extrabold title-gradient">
                 ₹<Counter value={stats.billing?.totalRevenue ?? 0} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Monthly Revenue Insights</div>
-            </Card>
+            </Card> */}
 
             {/* RETAIL BOOKINGS */}
-            <Card className="p-5 rounded-2xl card-glass">
+            {/* <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Retail Bookings</div>
               <div className="mt-2 text-3xl font-extrabold text-indigo-600">
                 <Counter value={retail ?? 0} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Counter Bookings</div>
-            </Card>
+            </Card> */}
 
             {/* AVERAGE PRICE */}
-            <Card className="p-5 rounded-2xl card-glass">
+            {/* <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Average Price / Unit</div>
               <div className="mt-2 text-3xl font-extrabold text-amber-600">
                 ₹<Counter value={42} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Estimated</div>
-            </Card>
+            </Card> */}
 
             {/* OPEN COMPLAINTS */}
-            <Card className="p-5 rounded-2xl card-glass">
+            {/* <Card className="p-5 rounded-2xl card-glass">
               <div className="text-xs text-gray-500">Open Complaints</div>
               <div className="mt-2 text-3xl font-extrabold text-red-600">
                 <Counter value={(complaints || []).filter((c:any)=>c.status==='open').length} />
               </div>
               <div className="text-xs text-gray-400 mt-1">Action Required</div>
-            </Card>
+            </Card> */}
           </div>
 
           {/* Provider cards row */}
@@ -320,44 +320,41 @@ export default function PremiumDashboard() {
               ) : (
                 filteredClients.map((c:any) => (
                   <div
-  key={c.id}
-  className="
-    flex items-center justify-between 
-    p-3 rounded-xl 
-    bg-white shadow-sm 
-    hover:shadow-md hover:-translate-y-1 
-    transition-all
-  "
->
-  {/* Left Side */}
-  <div className="flex items-center gap-3">
-    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-semibold">
-      {c.company_name?.slice(0, 2).toUpperCase()}
-    </div>
+                    key={c.id}
+                    className="
+                      flex items-center justify-between 
+                      p-3 rounded-xl 
+                      bg-white shadow-sm 
+                      hover:shadow-md hover:-translate-y-1 
+                      transition-all
+                    "
+                  >
+                    {/* Left Side */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-semibold">
+                        {c.company_name?.slice(0, 2).toUpperCase()}
+                      </div>
 
-    <div>
-      <div className="font-semibold text-sm text-gray-800">{c.company_name}</div>
-      <div className="text-xs text-gray-500">{c.email}</div>
-    </div>
-  </div>
+                      <div>
+                        <div className="font-semibold text-sm text-gray-800">{c.company_name}</div>
+                        <div className="text-xs text-gray-500">{c.email}</div>
+                      </div>
+                    </div>
 
-  {/* Right Side */}
-  <div className="flex flex-col items-end">
-    <Link href={`/admin/dtdc/clients/${c.id}`}>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-7 px-3 text-xs border-blue-500 text-blue-600 hover:bg-blue-50"
-      >
-        Open
-      </Button>
-    </Link>
-
-    <div className="text-[10px] text-gray-400 mt-1">#{c.id}</div>
-  </div>
-</div>
-
-
+                    {/* Right Side */}
+                    <div className="flex flex-col items-end">
+                      <Link href={`/admin/dtdc/clients/${c.id}`}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-3 text-xs border-blue-500 text-blue-600 hover:bg-blue-50"
+                        >
+                          Open
+                        </Button>
+                      </Link>
+                      <div className="text-[10px] text-gray-400 mt-1">#{c.id}</div>
+                    </div>
+                  </div>
                 ))
               )}
             </div>

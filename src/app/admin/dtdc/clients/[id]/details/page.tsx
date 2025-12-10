@@ -96,7 +96,7 @@ export default function DetailPage() {
     }
 
     try {
-      const res = await fetch(`/api/admin/clients/${clientId}/details?awb=${awb}`);
+      const res = await fetch(`/api/admin/details?awb=${awb}&clientId=${clientId}`);
       const json = await res.json();
 
       if (json.success) {

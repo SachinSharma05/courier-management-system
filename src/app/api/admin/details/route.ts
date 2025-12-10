@@ -114,13 +114,12 @@ function mapTimelineRow(t: any) {
 }
 
 // ----------------- Route -----------------
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-    console.log("API PARAMS ->", params);
-
+export async function GET(req: NextRequest) {
   try {
-    const clientId = await params.id;
+    const { searchParams } = req.nextUrl;
 
-    const awb = req.nextUrl.searchParams.get("awb");
+    const awb = searchParams.get("awb");
+    const clientId = searchParams.get("clientId");
 
     if (!awb) {
       return NextResponse.json(

@@ -77,17 +77,27 @@ export default function CredentialsForm({ id }: { id: string }) {
 
     const json = await res.json();
 
-    if (json.ok) router.push("/admin/clients");
+    if (json.ok) router.push("/admin/dtdc/clients");
     else alert(json.error);
   }
 
   return (
-    <div className="max-w-xl space-y-6 p-6 bg-white shadow rounded-lg">
-      <h1 className="text-2xl font-semibold">API Credentials</h1>
+  <div className="max-w-2xl mx-auto p-6">
+    
+    {/* HEADER */}
+    <div className="mb-6">
+      <h1 className="text-3xl font-bold tracking-tight">API Credentials</h1>
+      <p className="text-gray-500 mt-1">
+        Configure authentication details for selected provider.
+      </p>
+    </div>
+
+    {/* MAIN CARD */}
+    <div className="bg-white border rounded-xl shadow-sm p-6 space-y-6">
 
       {/* PROVIDER SELECT */}
-      <div>
-        <label className="block text-sm font-semibold mb-1">Provider</label>
+      <div className="space-y-1">
+        <label className="text-sm font-medium">Provider</label>
 
         <Select
           value={selectedProvider ? String(selectedProvider) : "none"}
@@ -96,8 +106,8 @@ export default function CredentialsForm({ id }: { id: string }) {
             else setSelectedProvider(Number(v));
           }}
         >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="-- Select Provider --" />
+          <SelectTrigger className="w-full md:w-60">
+            <SelectValue placeholder="Select Provider" />
           </SelectTrigger>
 
           <SelectContent>
@@ -111,18 +121,13 @@ export default function CredentialsForm({ id }: { id: string }) {
         </Select>
       </div>
 
-      {/** ---------------------------------------------------------------- **/}
-      {/** ADD CUSTOMER CODE FIELD (ALWAYS SHOWN, SAVED AS env_key = DTDC_CUSTOMER_CODE) **/}
-      {/** ---------------------------------------------------------------- **/}
-
-      <div>
-        <label className="block text-sm font-semibold mb-1">
-          DTDC_CUSTOMER_CODE
-        </label>
-
+      {/* CUSTOMER CODE (ALWAYS SHOW) */}
+      <div className="space-y-1">
+        <label className="text-sm font-medium">DTDC Customer Code</label>
         <input
           type="text"
-          className="border p-2 rounded w-full"
+          className="w-full px-3 py-2 rounded-lg border bg-white text-sm 
+                     focus:ring-2 focus:ring-blue-500 focus:outline-none"
           value={creds["DTDC_CUSTOMER_CODE"] ?? ""}
           onChange={(e) =>
             setCreds({ ...creds, DTDC_CUSTOMER_CODE: e.target.value })
@@ -130,55 +135,61 @@ export default function CredentialsForm({ id }: { id: string }) {
         />
       </div>
 
-      {/** ---------------------------------------------------------------- **/}
-      {/** EXISTING CREDENTIAL FIELDS (UNCHANGED)                          **/}
-      {/** ---------------------------------------------------------------- **/}
-
+      {/* DYNAMIC CREDENTIAL FIELDS */}
       {(Object.keys(creds) as (keyof CredentialFormState)[]).map((key) => {
         if (key === "DTDC_CUSTOMER_CODE") return null;
 
-        return (
-            <div key={key}>
-            <label className="block text-sm font-semibold mb-1 flex justify-between">
-                {key}
+        const isSecret =
+          key === "password" || key === "api_key" || key === "api_token";
 
-                {(key === "password" || key === "api_key" || key === "api_token") && (
+        return (
+          <div key={key} className="space-y-1">
+            <label className="text-sm font-medium flex justify-between items-center">
+              {key}
+              {isSecret && (
                 <button
-                    type="button"
-                    className="text-xs underline"
-                    onClick={() =>
+                  type="button"
+                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() =>
                     setMasked((m) => ({
-                        ...m,
-                        [key]: !m[key],
+                      ...m,
+                      [key]: !m[key],
                     }))
-                    }
+                  }
                 >
-                    {masked[key] ? "Show" : "Hide"}
+                  {masked[key] ? "Show" : "Hide"}
                 </button>
-                )}
+              )}
             </label>
 
             <input
-                type={masked[key] ? "password" : "text"}
-                className="border p-2 rounded w-full"
-                value={creds[key] ?? ""}
-                onChange={(e) =>
+              type={isSecret && masked[key] ? "password" : "text"}
+              className="w-full px-3 py-2 rounded-lg border bg-white text-sm 
+                         focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={creds[key] ?? ""}
+              onChange={(e) =>
                 setCreds({
-                    ...creds,
-                    [key]: e.target.value,
+                  ...creds,
+                  [key]: e.target.value,
                 })
-                }
+              }
             />
-            </div>
+          </div>
         );
-        })}
+      })}
 
-      <button
-        onClick={save}
-        className="px-4 py-2 bg-black text-white rounded hover:bg-gray-900"
-      >
-        Save
-      </button>
+      {/* SAVE BUTTON */}
+      <div className="pt-2">
+        <button
+          onClick={save}
+          className="px-5 py-2.5 rounded-lg bg-black text-white shadow 
+                     hover:bg-gray-900 transition disabled:opacity-50"
+        >
+          Save
+        </button>
+      </div>
+
     </div>
-  );
+  </div>
+);
 }

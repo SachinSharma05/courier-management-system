@@ -49,6 +49,7 @@ import { statusBadgeUI } from "@/lib/tracking/statusUtils";
 
 import { exportConsignmentsToExcel } from "@/lib/export/excel";
 import { downloadMergedLabelForRow } from "@/lib/pdf/label-utils";
+import Link from "next/link";
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -235,6 +236,13 @@ return (
         </div>
 
         <div className="flex items-center gap-3">
+          <Link href={`/admin/dtdc/clients`}>
+              <Button
+                className="bg-orange-600 text-white hover:bg-orange-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+            >
+              Back to CPDP - Clients
+            </Button>
+          </Link>
           <Button
             disabled={loading}
             onClick={refreshTracking}

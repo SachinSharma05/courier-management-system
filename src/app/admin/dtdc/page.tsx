@@ -77,7 +77,7 @@ export default function DtdcDashboard() {
       {/* CLIENT-WISE STATS — Only for DTDC */}
       {stats.clients && stats.clients.length > 0 && (
         <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-4">Client Wise Performance</h2>
+          <h2 className="text-xl font-semibold mb-4">DTDC - CPDP Stats</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.clients.map((c: any) => (

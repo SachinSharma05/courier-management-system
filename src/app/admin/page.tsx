@@ -31,22 +31,9 @@ function Counter({ value = 0, duration = 800 }: { value?: number; duration?: num
   return <span className="text-2xl font-bold">{current.toLocaleString()}</span>;
 }
 
-function StatRow({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span style={{ background: color }} className="w-3 h-3 rounded-full inline-block" />
-        <div className="text-sm text-gray-600">{label}</div>
-      </div>
-      <div className="text-sm font-semibold">{value ?? 0}</div>
-    </div>
-  );
-}
-
 /* -------------------------
    Page
    ------------------------- */
-
 const PROVIDERS = [
   { key: "dtdc", name: "DTDC", href: "/admin/dtdc" },
   { key: "delh", name: "Delhivery", href: "/admin/delhivery" },
@@ -107,13 +94,6 @@ export default function PremiumDashboard() {
     }));
   }, [stats]);
 
-  // filtered clients for sidebar search
-  const filteredClients = clients.filter((c: any) => {
-    if (!q) return true;
-    const s = q.toLowerCase();
-    return (c.company_name || "").toLowerCase().includes(s) || (c.email || "").toLowerCase().includes(s);
-  });
-
   return (
     <div className="min-h-screen p-4 space-y-6 bg-slate-50">
       {/* HERO */}
@@ -133,7 +113,7 @@ export default function PremiumDashboard() {
 
       <div className="grid grid-cols-12 gap-6">
         {/* LEFT — main content */}
-        <div className="col-span-8 space-y-6">
+        <div className="col-span-12 space-y-6">
           {/* KPI Grid */}
           <div className="grid grid-cols-4 gap-6">
             {/* REVENUE */}
@@ -174,7 +154,7 @@ export default function PremiumDashboard() {
           </div>
 
           {/* Provider cards row */}
-          <div className="grid grid-cols-2 gap-6 mt-4">
+          <div className="grid grid-cols-4 gap-6 mt-4">
             {PROVIDERS.map((p) => {
               const d = stats[p.key] ?? { delivered:0, pending:0, rto:0, total:0 };
 
@@ -227,44 +207,33 @@ export default function PremiumDashboard() {
             })}
           </div>
 
-
           {/* Middle row: Complaints + Pie */}
           <div className="grid grid-cols-12 gap-4">
-            <div className="col-span-7">
-              <Card className="p-4 rounded-xl">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Recent Complaints</h3>
-                  <div className="text-sm text-gray-500">{complaints.length} results</div>
-                </div>
-
-                <div className="divide-y rounded-lg border max-h-[300px] overflow-y-auto">
-                  {complaints.length === 0 ? (
-                    <div className="p-6 text-gray-500 text-center">No complaints found</div>
-                  ) : complaints.map((c:any) => (
-                    <div key={c.id} className="p-4 hover:bg-slate-50 transition flex justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2 py-0.5 rounded text-xs ${c.status==='open'?'bg-red-100 text-red-700':c.status==='in_progress'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}`}>
-                            {c.status}
-                          </span>
-                          <div className="text-sm font-medium">AWB: {c.awb ?? "—"}</div>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">{c.message ?? c.note ?? "No message"}</div>
-                      </div>
-
-                      <div className="text-xs text-right text-gray-500">
-                        <div>{new Date(c.updated_at ?? Date.now()).toLocaleString()}</div>
-                        <Link href={`/admin/complaints/${c.id}`}>
-                          <Button size="sm" variant="outline" className="mt-2">Open</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
+            <div className="col-span-8">
+              {/* Trend chart (colored bars) */}
+              <Card className="p-4 rounded-xl flex flex-col items-center">
+                <h3 className="text-lg font-semibold mb-2">Trend: Bookings (by time window)</h3>
+                <div className="w-full h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={trend.map((t:any)=>({ label: t.label, value: t.value }))} margin={{ left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="value">
+                        {trend.map((t:any, idx:number) => {
+                          const v = t.value;
+                          const color = v === 0 ? COLORS.neutral : v < 20 ? COLORS.pending : v < 60 ? "#3b82f6" : COLORS.delivered;
+                          return <Cell key={idx} fill={color} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </Card>
             </div>
 
-            <div className="col-span-5">
+            <div className="col-span-4">
               <Card className="p-4 rounded-xl flex flex-col items-center">
                 <h3 className="text-lg font-semibold mb-2">Status Breakdown</h3>
                 <div className="w-full h-56">
@@ -295,93 +264,38 @@ export default function PremiumDashboard() {
             </div>
           </div>
         </div>
-        
-        {/* RIGHT SIDEBAR */}
-        <div className="col-span-4">
-          <Card className="p-4 rounded-xl sticky top-6">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-xs text-gray-400">DTDC → CPDP</div>
-                <div className="text-lg font-semibold">Clients</div>
+    </div>
+    <Card className="p-4 rounded-xl">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Recent Complaints</h3>
+        <div className="text-sm text-gray-500">{complaints.length} results</div>
+      </div>
+
+      <div className="divide-y rounded-lg border max-h-[300px] overflow-y-auto">
+        {complaints.length === 0 ? (
+          <div className="p-6 text-gray-500 text-center">No complaints found</div>
+        ) : complaints.map((c:any) => (
+          <div key={c.id} className="p-4 hover:bg-slate-50 transition flex justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className={`px-2 py-0.5 rounded text-xs ${c.status==='open'?'bg-red-100 text-red-700':c.status==='in_progress'?'bg-yellow-100 text-yellow-700':'bg-green-100 text-green-700'}`}>
+                  {c.status}
+                </span>
+                <div className="text-sm font-medium">AWB: {c.awb ?? "—"}</div>
               </div>
-              <Link href="/admin/dtdc/clients"><Button size="sm" variant="outline">All</Button></Link>
+              <div className="text-xs text-gray-600 mt-1">{c.message ?? c.note ?? "No message"}</div>
             </div>
 
-            <div className="mb-3">
-              <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Search clients..." className="w-full border px-3 py-2 rounded-md text-sm" />
+            <div className="text-xs text-right text-gray-500">
+              <div>{new Date(c.updated_at ?? Date.now()).toLocaleString()}</div>
+              <Link href={`/admin/complaints/${c.id}`}>
+                <Button size="sm" variant="outline" className="mt-2">Open</Button>
+              </Link>
             </div>
-
-            <div className="space-y-2 max-h-[680px] overflow-y-auto">
-              {loading ? (
-                <div className="text-sm text-gray-500 p-4">Loading clients...</div>
-              ) : filteredClients.length === 0 ? (
-                <div className="text-sm text-gray-500 p-4">No clients found</div>
-              ) : (
-                filteredClients.map((c:any) => (
-                  <div
-                    key={c.id}
-                    className="
-                      flex items-center justify-between 
-                      p-3 rounded-xl 
-                      bg-white shadow-sm 
-                      hover:shadow-md hover:-translate-y-1 
-                      transition-all
-                    "
-                  >
-                    {/* Left Side */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-semibold">
-                        {c.company_name?.slice(0, 2).toUpperCase()}
-                      </div>
-
-                      <div>
-                        <div className="font-semibold text-sm text-gray-800">{c.company_name}</div>
-                        <div className="text-xs text-gray-500">{c.email}</div>
-                      </div>
-                    </div>
-
-                    {/* Right Side */}
-                    <div className="flex flex-col items-end">
-                      <Link href={`/admin/dtdc/clients/${c.id}`}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-3 text-xs border-blue-500 text-blue-600 hover:bg-blue-50"
-                        >
-                          Open
-                        </Button>
-                      </Link>
-                      <div className="text-[10px] text-gray-400 mt-1">#{c.id}</div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-    </div>
-
-      {/* Trend chart (colored bars) */}
-      <Card className="p-4 rounded-xl">
-        <h3 className="text-lg font-semibold mb-2">Trend: Bookings (by time window)</h3>
-        <div className="w-full h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trend.map((t:any)=>({ label: t.label, value: t.value }))} margin={{ left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="value">
-                {trend.map((t:any, idx:number) => {
-                  const v = t.value;
-                  const color = v === 0 ? COLORS.neutral : v < 20 ? COLORS.pending : v < 60 ? "#3b82f6" : COLORS.delivered;
-                  return <Cell key={idx} fill={color} />;
-                })}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-    </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  </div>
   );
 }

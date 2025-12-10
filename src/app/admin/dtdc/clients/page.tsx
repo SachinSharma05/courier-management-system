@@ -30,10 +30,10 @@ export default async function ClientsPage() {
 
     {/* HEADER */}
     <div className="flex justify-between items-center">
-      <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
+      <h1 className="text-2xl font-bold tracking-tight">DTDC - CPDP Client Codes</h1>
 
       <Link
-        href="/admin/clients/new"
+        href="/admin/dtdc/clients/newclient"
         className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 
                    text-white rounded-lg shadow hover:shadow-lg hover:-translate-y-0.5 
                    transition-all"
@@ -127,7 +127,7 @@ export default async function ClientsPage() {
               <div className="grid grid-cols-2 gap-3">
 
                 <Link
-                  href={`/admin/clients/${c.id}/track`}
+                  href={`/admin/dtdc/clients/${c.id}/track`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-blue-50 text-blue-700 
@@ -138,7 +138,7 @@ export default async function ClientsPage() {
                 </Link>
 
                 <Link
-                  href={`/admin/clients/${c.id}/book`}
+                  href={`/admin/dtdc/clients/${c.id}/book`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 
@@ -149,7 +149,7 @@ export default async function ClientsPage() {
                 </Link>
 
                 <Link
-                  href={`/admin/clients/${c.id}/bulk`}
+                  href={`/admin/dtdc/clients/${c.id}/bulk-book`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-yellow-50 text-yellow-700 
@@ -160,7 +160,7 @@ export default async function ClientsPage() {
                 </Link>
 
                 <Link
-                  href={`/admin/clients/${c.id}/reports`}
+                  href={`/admin/dtdc/clients/${c.id}/reports`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-purple-50 text-purple-700 
@@ -175,7 +175,7 @@ export default async function ClientsPage() {
               <div className="grid grid-cols-2 gap-3">
 
                 <Link
-                  href={`/admin/clients/${c.id}/edit`}
+                  href={`/admin/dtdc/clients/${c.id}/editclient`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-gray-50 text-gray-700 
@@ -186,7 +186,7 @@ export default async function ClientsPage() {
                 </Link>
 
                 <Link
-                  href={`/admin/clients/${c.id}/credentials`}
+                  href={`/admin/dtdc/clients/${c.id}/credentials`}
                   className="
                     flex items-center justify-center gap-1 
                     px-3 py-2 rounded-md bg-teal-50 text-teal-700 

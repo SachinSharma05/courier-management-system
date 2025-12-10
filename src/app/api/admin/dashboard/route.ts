@@ -110,23 +110,6 @@ export async function GET(req: Request) {
     };
 
     /* ------------------------------------------------------------
-       2) CLIENTS LIST (for sidebar)
-    ------------------------------------------------------------ */
-    const dbClients = await db
-      .select({
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        company_name: users.company_name,
-        contact_person: users.contact_person,
-        phone: users.phone,
-        created_at: users.created_at,
-      })
-      .from(users)
-      .where(eq(users.role, "client"))
-      .orderBy(users.id);
-
-    /* ------------------------------------------------------------
        3) COMPLAINTS LIST (scrollable section)
     ------------------------------------------------------------ */
     const dbComplaints = await db
@@ -199,9 +182,6 @@ export async function GET(req: Request) {
 
       // Provider boxes
       providers: providerStats,
-
-      // Right sidebar list
-      clients: dbClients,
 
       // Complaints scroll list
       complaints: dbComplaints,

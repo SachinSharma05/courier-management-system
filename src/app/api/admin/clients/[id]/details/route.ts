@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
 import { consignments, trackingEvents, trackingHistory } from "@/app/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
@@ -114,7 +114,7 @@ function mapTimelineRow(t: any) {
 }
 
 // ----------------- Route -----------------
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const clientId = params.id;
 

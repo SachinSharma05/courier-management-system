@@ -75,6 +75,8 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
   // Auto-refresh interval ref
   const autoRef = useRef<number | null>(null);
 
+  const id = clientId; // for lint
+
   // ---------- fetchPage ----------
   const fetchPage = useCallback(
   async (force = false) => {
@@ -390,7 +392,11 @@ return (
                         key={r.awb}
                         className={`${delivered ? "bg-green-50" : ""} hover:bg-gray-100 transition`}
                       >
-                        <TableCell className="font-medium w-[140px]">{r.awb}</TableCell>
+                        <TableCell className="font-medium w-[140px]">
+                          <Link href={`/admin/dtdc/clients/${id}/details?awb=${r.awb}`} className="bg-green-50">
+                            {r.awb}
+                          </Link>
+                        </TableCell>
                         <TableCell className="w-[160px]">{statusBadgeUI(r.last_status ?? "-")}</TableCell>
                         <TableCell className="w-[140px]">{r.booked_on ?? "-"}</TableCell>
                         <TableCell className="w-[160px]">{r.last_updated_on ?? "-"}</TableCell>

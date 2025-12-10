@@ -224,336 +224,335 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
   }
 
   {/* ---------- UI (fixed: restores inner scroll exactly) ---------- */}
-return (
-  <div className={loading ? "pointer-events-none opacity-50" : ""}>
-    <div className="space-y-4 p-2 md:p-4">
+  return (
+    <div className={loading ? "pointer-events-none opacity-50" : ""}>
+      <div className="space-y-4 p-2 md:p-4">
 
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Track Consignments</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Search, filter, manage, export & analyze your tracking data.
-          </p>
-        </div>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Track Consignments</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Search, filter, manage, export & analyze your tracking data.
+            </p>
+          </div>
 
-        <div className="flex items-center gap-3">
-          <Link href={`/admin/dtdc/clients`}>
-              <Button
-                className="bg-orange-600 text-white hover:bg-orange-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+          <div className="flex items-center gap-3">
+            <Link href={`/admin/dtdc/clients`}>
+                <Button
+                  className="bg-orange-600 text-white hover:bg-orange-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+              >
+                Back to CPDP - Clients
+              </Button>
+            </Link>
+            <Button
+              disabled={loading}
+              onClick={refreshTracking}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
             >
-              Back to CPDP - Clients
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+                  </svg>
+                  Refreshing…
+                </span>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh Status
+                </>
+              )}
             </Button>
-          </Link>
-          <Button
-            disabled={loading}
-            onClick={refreshTracking}
-            className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
-                </svg>
-                Refreshing…
-              </span>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                Refresh Status
-              </>
-            )}
-          </Button>
 
-          <Button
-            variant="default"
-            className="h-10 px-5 rounded-lg shadow"
-            onClick={() => {
-              try {
-                exportConsignmentsToExcel(rows);
-                toast.success("Excel exported");
-              } catch {
-                toast.error("Unable to export");
-              }
-            }}
-          >
-            Export Excel
-          </Button>
-        </div>
-      </div>
-
-      {/* FILTER BAR */}
-      <Card className="border shadow-sm rounded-xl">
-        <CardContent className="py-0 flex flex-wrap items-center gap-4">
-          <Input
-            placeholder="Search AWB"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-56 rounded-lg"
-          />
-
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-40 rounded-lg">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="in transit">In Transit</SelectItem>
-              <SelectItem value="out for delivery">Out For Delivery</SelectItem>
-              <SelectItem value="reached at destination">Reached At Destination</SelectItem>
-              <SelectItem value="received at delivery centre">Received At Delivery Centre</SelectItem>
-              <SelectItem value="rto">RTO</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="weekly off">Weekly Off</SelectItem>
-              <SelectItem value="undelivered">Undelivered</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">From</span>
-            <Input type="date" className="rounded-lg" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
-            <span className="text-sm text-gray-500">To</span>
-            <Input type="date" className="rounded-lg" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
-          </div>
-
-          <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-40 rounded-lg">
-              <SelectValue placeholder="TAT" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="warning">Warning</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
-              <SelectItem value="sensitive">Sensitive</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-gray-500">Page Size</span>
-            <Input
-              type="number"
-              className="w-20 rounded-lg"
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE)));
-                setPage(1);
+            <Button
+              variant="default"
+              className="h-10 px-5 rounded-lg shadow"
+              onClick={() => {
+                try {
+                  exportConsignmentsToExcel(rows);
+                  toast.success("Excel exported");
+                } catch {
+                  toast.error("Unable to export");
+                }
               }}
-            />
+            >
+              Export Excel
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* TABLE CARD — KEEP the original fixed-height wrapper to restore inner scroll */}
-      <Card className="shadow-sm border rounded-xl">
-        <CardContent className="p-0">
-          {/* IMPORTANT: restore exact behavior — outer wrapper locks height and prevents ScrollArea from expanding */}
-          <div className="h-[90vh] flex flex-col overflow-hidden">
-            <ScrollArea className="flex-1 overflow-auto">
-              <Table className="text-sm w-full">
+        {/* FILTER BAR */}
+        <Card className="border shadow-sm rounded-xl">
+          <CardContent className="py-0 flex flex-wrap items-center gap-4">
+            <Input
+              placeholder="Search AWB"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-56 rounded-lg"
+            />
 
-                {/* sticky header */}
-                <TableHeader className="bg-gray-50 sticky top-0 z-20 shadow-sm">
-                  <TableRow>
-                    <TableHead className="w-[140px]">AWB</TableHead>
-                    <TableHead className="w-[160px]">Status</TableHead>
-                    <TableHead className="w-[140px]">Booked</TableHead>
-                    <TableHead className="w-[160px]">Last Update</TableHead>
-                    <TableHead className="w-[140px]">Origin</TableHead>
-                    <TableHead className="w-[160px]">Destination</TableHead>
-                    <TableHead className="w-[120px]">TAT</TableHead>
-                    <TableHead className="w-[120px]">Movement</TableHead>
-                    <TableHead className="w-[80px]">Timeline</TableHead>
-                    <TableHead className="w-[80px]">PDF</TableHead>
-                    <TableHead className="w-[100px]">Details</TableHead>
-                  </TableRow>
-                </TableHeader>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-40 rounded-lg">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="in transit">In Transit</SelectItem>
+                <SelectItem value="out for delivery">Out For Delivery</SelectItem>
+                <SelectItem value="reached at destination">Reached At Destination</SelectItem>
+                <SelectItem value="received at delivery centre">Received At Delivery Centre</SelectItem>
+                <SelectItem value="rto">RTO</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="weekly off">Weekly Off</SelectItem>
+                <SelectItem value="undelivered">Undelivered</SelectItem>
+              </SelectContent>
+            </Select>
 
-                <TableBody>
-                  {rows.length === 0 && (
-                    <TR>
-                      <TableCell colSpan={12} className="py-10 text-center text-gray-500">
-                        {isFetching ? "Loading..." : "No results found"}
-                      </TableCell>
-                    </TR>
-                  )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">From</span>
+              <Input type="date" className="rounded-lg" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+              <span className="text-sm text-gray-500">To</span>
+              <Input type="date" className="rounded-lg" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+            </div>
 
-                  {rows.map((r) => {
-                    const delivered = isDelivered(r.last_status);
-                    const tat = computeTAT(r.awb, r.booked_on, r.last_status);
-                    const move = computeMovement(
-                      r.timeline?.[0]?.actionDate,
-                      r.timeline?.[0]?.actionTime,
-                      r.last_status
-                    );
+            <Select value={tatFilter} onValueChange={(v) => { setTatFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-40 rounded-lg">
+                <SelectValue placeholder="TAT" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+                <SelectItem value="sensitive">Sensitive</SelectItem>
+              </SelectContent>
+            </Select>
 
-                    return (
-                      <TR
-                        key={r.awb}
-                        className={`${delivered ? "bg-green-50" : ""} hover:bg-gray-100 transition`}
-                      >
-                        <TableCell className="font-medium w-[140px]">
-                          <Link href={`/admin/dtdc/clients/${id}/details?awb=${r.awb}`} className="bg-green-50">
-                            {r.awb}
-                          </Link>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm text-gray-500">Page Size</span>
+              <Input
+                type="number"
+                className="w-20 rounded-lg"
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE)));
+                  setPage(1);
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* TABLE CARD — KEEP the original fixed-height wrapper to restore inner scroll */}
+        <Card className="shadow-sm border rounded-xl">
+          <CardContent className="p-0">
+            {/* IMPORTANT: restore exact behavior — outer wrapper locks height and prevents ScrollArea from expanding */}
+            <div className="h-[90vh] flex flex-col overflow-hidden">
+              <ScrollArea className="flex-1 overflow-auto">
+                <Table className="text-sm w-full">
+
+                  {/* sticky header */}
+                  <TableHeader className="bg-gray-50 sticky top-0 z-20 shadow-sm">
+                    <TableRow>
+                      <TableHead className="w-[140px]">AWB</TableHead>
+                      <TableHead className="w-[160px]">Status</TableHead>
+                      <TableHead className="w-[140px]">Booked</TableHead>
+                      <TableHead className="w-[160px]">Last Update</TableHead>
+                      <TableHead className="w-[140px]">Origin</TableHead>
+                      <TableHead className="w-[160px]">Destination</TableHead>
+                      <TableHead className="w-[120px]">TAT</TableHead>
+                      <TableHead className="w-[120px]">Movement</TableHead>
+                      <TableHead className="w-[80px]">Timeline</TableHead>
+                      <TableHead className="w-[80px]">PDF</TableHead>
+                      <TableHead className="w-[100px]">Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {rows.length === 0 && (
+                      <TR>
+                        <TableCell colSpan={12} className="py-10 text-center text-gray-500">
+                          {isFetching ? "Loading..." : "No results found"}
                         </TableCell>
-                        <TableCell className="w-[160px]">{statusBadgeUI(r.last_status ?? "-")}</TableCell>
-                        <TableCell className="w-[140px]">{r.booked_on ?? "-"}</TableCell>
-                        <TableCell className="w-[160px]">{r.last_updated_on ?? "-"}</TableCell>
-                        <TableCell className="w-[140px]">{r.origin ?? "-"}</TableCell>
-                        <TableCell className="w-[160px]">{r.destination ?? "-"}</TableCell>
-                        <TableCell className="w-[120px]">{tatBadgeUI(tat)}</TableCell>
-                        <TableCell className="w-[120px]">{moveBadgeUI(move)}</TableCell>
+                      </TR>
+                    )}
 
-                        {/* Timeline (sheet) */}
-                        <TableCell className="w-[80px]">
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <button className="text-primary underline text-sm">View</button>
-                            </SheetTrigger>
-                            <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
-                              <SheetHeader>
-                                <SheetTitle>Timeline — {r.awb}</SheetTitle>
-                                <SheetDescription>Complete movement history</SheetDescription>
-                              </SheetHeader>
+                    {rows.map((r) => {
+                      const delivered = isDelivered(r.last_status);
+                      const tat = computeTAT(r.awb, r.booked_on, r.last_status);
+                      const move = computeMovement(
+                        r.timeline?.[0]?.actionDate,
+                        r.timeline?.[0]?.actionTime,
+                        r.last_status
+                      );
 
-                              <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-6 pr-2">
-                                {r.timeline?.length ? (
-                                  r.timeline.map((t: any, i: number) => (
-                                    <div key={i} className="border-b pb-4">
-                                      <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
-                                      <div className="font-semibold">{t.action}</div>
-                                      <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
-                                      {t.remarks && <div className="text-xs text-gray-500 mt-1">{t.remarks}</div>}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <p className="text-gray-500">No timeline available.</p>
-                                )}
-                              </div>
-                            </SheetContent>
-                          </Sheet>
-                        </TableCell>
+                      return (
+                        <TR
+                          key={r.awb}
+                          className={`${delivered ? "bg-green-50" : ""} hover:bg-gray-100 transition`}
+                        >
+                          <TableCell className="font-medium w-[140px]">
+                            <Link href={`/admin/dtdc/clients/${id}/details?awb=${r.awb}`} className="bg-green-50">
+                              {r.awb}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="w-[160px]">{statusBadgeUI(r.last_status ?? "-")}</TableCell>
+                          <TableCell className="w-[140px]">{r.booked_on ?? "-"}</TableCell>
+                          <TableCell className="w-[160px]">{r.last_updated_on ?? "-"}</TableCell>
+                          <TableCell className="w-[140px]">{r.origin ?? "-"}</TableCell>
+                          <TableCell className="w-[160px]">{r.destination ?? "-"}</TableCell>
+                          <TableCell className="w-[120px]">{tatBadgeUI(tat)}</TableCell>
+                          <TableCell className="w-[120px]">{moveBadgeUI(move)}</TableCell>
 
-                        {/* PDF */}
-                        <TableCell className="w-[80px]">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="rounded-lg"
-                            onClick={async () => {
-                              try {
-                                await downloadMergedLabelForRow(r);
-                                toast.success("Label downloaded");
-                              } catch {
-                                toast.error("Failed generating label");
-                              }
-                            }}
-                          >
-                            PDF
-                          </Button>
-                        </TableCell>
+                          {/* Timeline (sheet) */}
+                          <TableCell className="w-[80px]">
+                            <Sheet>
+                              <SheetTrigger asChild>
+                                <button className="text-primary underline text-sm">View</button>
+                              </SheetTrigger>
+                              <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
+                                <SheetHeader>
+                                  <SheetTitle>Timeline — {r.awb}</SheetTitle>
+                                  <SheetDescription>Complete movement history</SheetDescription>
+                                </SheetHeader>
 
-                        {/* Details */}
-                        <TableCell className="w-[100px]">
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button size="sm" variant="secondary" className="rounded-lg">Details</Button>
-                            </SheetTrigger>
-
-                            <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
-                              <SheetHeader>
-                                <SheetTitle>Consignment Details — {r.awb}</SheetTitle>
-                                <SheetDescription>Complete shipment details</SheetDescription>
-                              </SheetHeader>
-
-                              <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-4 pr-2">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                  <div><strong>Status:</strong> {r.last_status}</div>
-                                  <div><strong>Booked:</strong> {r.booked_on}</div>
-                                  <div><strong>Last Update:</strong> {r.last_updated_on}</div>
-                                  <div><strong>Origin:</strong> {r.origin}</div>
-                                  <div><strong>Destination:</strong> {r.destination}</div>
-                                </div>
-
-                                <div>
-                                  <h4 className="text-lg font-semibold mb-3">Timeline</h4>
+                                <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-6 pr-2">
                                   {r.timeline?.length ? (
-                                    <div className="space-y-4">
-                                      {r.timeline.map((t: any, i: number) => (
-                                        <div key={i} className="border-b pb-3">
-                                          <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
-                                          <div className="font-medium">{t.action}</div>
-                                          <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
-                                        </div>
-                                      ))}
-                                    </div>
+                                    r.timeline.map((t: any, i: number) => (
+                                      <div key={i} className="border-b pb-4">
+                                        <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
+                                        <div className="font-semibold">{t.action}</div>
+                                        <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
+                                        {t.remarks && <div className="text-xs text-gray-500 mt-1">{t.remarks}</div>}
+                                      </div>
+                                    ))
                                   ) : (
                                     <p className="text-gray-500">No timeline available.</p>
                                   )}
                                 </div>
-                              </div>
-                            </SheetContent>
-                          </Sheet>
-                        </TableCell>
-                      </TR>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+                              </SheetContent>
+                            </Sheet>
+                          </TableCell>
+
+                          {/* PDF */}
+                          <TableCell className="w-[80px]">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-lg"
+                              onClick={async () => {
+                                try {
+                                  await downloadMergedLabelForRow(r);
+                                  toast.success("Label downloaded");
+                                } catch {
+                                  toast.error("Failed generating label");
+                                }
+                              }}
+                            >
+                              PDF
+                            </Button>
+                          </TableCell>
+
+                          {/* Details */}
+                          <TableCell className="w-[100px]">
+                            <Sheet>
+                              <SheetTrigger asChild>
+                                <Button size="sm" variant="secondary" className="rounded-lg">Details</Button>
+                              </SheetTrigger>
+
+                              <SheetContent side="right" className="px-6 w-[480px] sm:w-[560px]">
+                                <SheetHeader>
+                                  <SheetTitle>Consignment Details — {r.awb}</SheetTitle>
+                                  <SheetDescription>Complete shipment details</SheetDescription>
+                                </SheetHeader>
+
+                                <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-4 pr-2">
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div><strong>Status:</strong> {r.last_status}</div>
+                                    <div><strong>Booked:</strong> {r.booked_on}</div>
+                                    <div><strong>Last Update:</strong> {r.last_updated_on}</div>
+                                    <div><strong>Origin:</strong> {r.origin}</div>
+                                    <div><strong>Destination:</strong> {r.destination}</div>
+                                  </div>
+
+                                  <div>
+                                    <h4 className="text-lg font-semibold mb-3">Timeline</h4>
+                                    {r.timeline?.length ? (
+                                      <div className="space-y-4">
+                                        {r.timeline.map((t: any, i: number) => (
+                                          <div key={i} className="border-b pb-3">
+                                            <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
+                                            <div className="font-medium">{t.action}</div>
+                                            <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-500">No timeline available.</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </SheetContent>
+                            </Sheet>
+                          </TableCell>
+                        </TR>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* PAGINATION (outside the fixed-height card) */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Showing {rows.length} of {totalCount}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* PAGINATION (outside the fixed-height card) */}
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          Showing {rows.length} of {totalCount}
-        </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
+            <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
 
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage(1)}>First</Button>
-          <Button size="sm" variant="ghost" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</Button>
+            {pageNumbers[0] > 1 && <span className="px-1">…</span>}
 
-          {pageNumbers[0] > 1 && <span className="px-1">…</span>}
+            {pageNumbers.map((p) => (
+              <button
+                key={p}
+                onClick={() => { setPage(p); fetchPage(true); }}
+                className={`px-3 py-1 rounded-lg text-sm ${p === page ? "bg-primary text-white" : "bg-white border"}`}
+              >
+                {p}
+              </button>
+            ))}
 
-          {pageNumbers.map((p) => (
-            <button
-              key={p}
-              onClick={() => { setPage(p); fetchPage(true); }}
-              className={`px-3 py-1 rounded-lg text-sm ${p === page ? "bg-primary text-white" : "bg-white border"}`}
-            >
-              {p}
-            </button>
-          ))}
+            {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
 
-          {pageNumbers[pageNumbers.length - 1] < totalPages && <span className="px-1">…</span>}
+            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
+            <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
 
-          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</Button>
-          <Button size="sm" variant="ghost" disabled={page === totalPages} onClick={() => setPage(totalPages)}>Last</Button>
-
-          <div className="ml-4 flex items-center gap-2">
-            <span className="text-sm text-gray-700">Jump</span>
-            <Input
-              type="number"
-              min={1}
-              max={totalPages}
-              className="w-20 rounded-lg"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const v = Number((e.target as HTMLInputElement).value || 1);
-                  const pg = Math.max(1, Math.min(totalPages, v));
-                  setPage(pg);
-                  fetchPage(true);
-                }
-              }}
-            />
+            <div className="ml-4 flex items-center gap-2">
+              <span className="text-sm text-gray-700">Jump</span>
+              <Input
+                type="number"
+                min={1}
+                max={totalPages}
+                className="w-20 rounded-lg"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const v = Number((e.target as HTMLInputElement).value || 1);
+                    const pg = Math.max(1, Math.min(totalPages, v));
+                    setPage(pg);
+                    fetchPage(true);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
-
+  );
 }

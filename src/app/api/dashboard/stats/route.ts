@@ -30,6 +30,8 @@ export async function GET(req: Request) {
                     OR LOWER(last_status) LIKE '%return%'
                     OR LOWER(last_status) LIKE '%returned%'
                     OR LOWER(last_status) LIKE '%return to origin%'
+                    OR LOWER(last_status) LIKE '%RTO In Transit%'
+                    OR LOWER(last_status) LIKE '%RTO%'
                   )`);
 
     const totalProviderCount = Number(totalRes[0].count ?? 0);
@@ -56,6 +58,9 @@ export async function GET(req: Request) {
               WHEN LOWER(co.last_status) LIKE '%return%' THEN 1
               WHEN LOWER(co.last_status) LIKE '%returned%' THEN 1
               WHEN LOWER(co.last_status) LIKE '%return to origin%' THEN 1
+              WHEN LOWER(co.last_status) LIKE '%RTO In Transit%' THEN 1
+              WHEN LOWER(co.last_status) LIKE '%RTO%' THEN 1
+              WHEN LOWER(co.last_status) LIKE '%rto in transit%' THEN 1
               ELSE 0
             END
           )::bigint AS rto,

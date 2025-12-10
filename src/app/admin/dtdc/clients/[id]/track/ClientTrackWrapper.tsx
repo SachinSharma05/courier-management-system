@@ -303,7 +303,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                 <SelectItem value="out for delivery">Out For Delivery</SelectItem>
                 <SelectItem value="reached at destination">Reached At Destination</SelectItem>
                 <SelectItem value="received at delivery centre">Received At Delivery Centre</SelectItem>
-                <SelectItem value="rto">RTO</SelectItem>
+                <SelectItem value="RTO In Transit">RTO</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="weekly off">Weekly Off</SelectItem>
                 <SelectItem value="undelivered">Undelivered</SelectItem>

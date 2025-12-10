@@ -47,7 +47,13 @@ export async function GET(req: Request) {
           break;
 
         case "rto":
-          whereClauses.push(sql`LOWER(c.last_status) = 'rto'`);
+        case "RTO":
+        case "RTO In Transit":
+          whereClauses.push(sql`LOWER(c.last_status) = 'rto'
+                            OR LOWER(c.last_status) = 'return to origin'
+                            OR LOWER(c.last_status) = 'returned'
+                            OR LOWER(c.last_status) = 'RTO In Transit'
+                            OR LOWER(c.last_status) = 'RTO'`);
           break;
 
         case "in transit":

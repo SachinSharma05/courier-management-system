@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import { UploadCloud, FileSpreadsheet, Loader2 } from "lucide-react";
 
 export default function DelhiveryBulkTrackPage() {
   const [fileName, setFileName] = useState("");
@@ -23,7 +24,6 @@ export default function DelhiveryBulkTrackPage() {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
 
-    // Expecting column named: Waybill
     const awbs = rows
       .map((r: any) => r.Waybill || r.waybill || r.AWB || r.awb)
       .filter(Boolean);
@@ -58,25 +58,33 @@ export default function DelhiveryBulkTrackPage() {
 
   return (
     <div className="p-8 space-y-8">
-      <h1 className="text-2xl font-bold">Bulk Track Delhivery Shipments</h1>
+      <div className="flex items-center gap-3">
+        <FileSpreadsheet className="text-indigo-600" size={26} />
+        <h1 className="text-2xl font-bold">Bulk Track Delhivery Shipments</h1>
+      </div>
 
-      {/* Upload Box */}
+      {/* Upload Card */}
       <div className="p-6 bg-white rounded-xl border shadow-sm space-y-4">
-        <p className="text-gray-600">Upload an Excel file containing AWB numbers (column: Waybill)</p>
+        <p className="text-gray-600">
+          Upload an Excel file containing AWB numbers <span className="font-medium">(column: Waybill)</span>
+        </p>
 
-        <input
-          type="file"
-          accept=".xlsx,.xls,.csv"
-          onChange={handleUpload}
-          className="border p-2 rounded w-full"
-        />
-
-        {fileName && <p className="text-sm text-gray-500">File: {fileName}</p>}
+        <label className="w-full border rounded-xl bg-gray-50 hover:bg-gray-100 p-6 flex flex-col items-center justify-center cursor-pointer">
+          <UploadCloud size={32} className="text-indigo-600 mb-2" />
+          <span className="text-gray-700 font-medium">
+            {fileName ? fileName : "Click to upload Excel file"}
+          </span>
+          <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleUpload} />
+        </label>
 
         {processing && (
-          <div className="mt-4">
-            <p className="font-medium">Tracking in progress… ({progress}%)</p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <Loader2 className="animate-spin" size={18} />
+              Tracking in progress… {progress}%
+            </div>
+
+            <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-indigo-600 h-2 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
@@ -86,31 +94,30 @@ export default function DelhiveryBulkTrackPage() {
         )}
       </div>
 
-      {/* Results Table */}
+      {/* Results */}
       {results.length > 0 && (
         <div className="p-6 bg-white rounded-xl border shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Results</h2>
 
-          <table className="w-full border text-sm">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 border">AWB</th>
-                <th className="p-2 border">Status</th>
-                <th className="p-2 border">Success</th>
-                <th className="p-2 border">Details</th>
-              </tr>
-            </thead>
+          <div className="overflow-x-auto">
+            <table className="w-full border text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-2 border">AWB</th>
+                  <th className="p-2 border">Status</th>
+                  <th className="p-2 border">Success</th>
+                  <th className="p-2 border">Timeline</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {results.map((r, i) => (
-                <tr key={i}>
-                  <td className="border p-2">{r.awb}</td>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="border p-2 font-medium">{r.awb}</td>
 
-                  <td className="border p-2">
-                    <span
-                      className={`
-                        px-2 py-1 rounded text-xs font-medium
-                        ${
+                    <td className="border p-2">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
                           r.status?.toLowerCase().includes("deliver")
                             ? "bg-green-100 text-green-700"
                             : r.status?.toLowerCase().includes("transit")
@@ -118,55 +125,57 @@ export default function DelhiveryBulkTrackPage() {
                             : r.status?.toLowerCase().includes("rto")
                             ? "bg-red-100 text-red-700"
                             : "bg-yellow-100 text-yellow-700"
-                        }
-                      `}
-                    >
-                      {r.status}
-                    </span>
-                  </td>
+                        }`}
+                      >
+                        {r.status}
+                      </span>
+                    </td>
 
-                  <td className="border p-2 text-center">
-                    {r.success ? "✔" : "✖"}
-                  </td>
+                    <td className="border p-2 text-center">
+                      {r.success ? (
+                        <span className="text-green-600 font-bold">✔</span>
+                      ) : (
+                        <span className="text-red-600 font-bold">✖</span>
+                      )}
+                    </td>
 
-                  <td className="border p-2">
-                    {r.live ? (
-                      <details className="cursor-pointer">
-                        <summary className="text-indigo-600">View Timeline</summary>
+                    {/* Timeline */}
+                    <td className="border p-2">
+                      {r.live ? (
+                        <details className="cursor-pointer">
+                          <summary className="text-indigo-600 font-medium">View Timeline</summary>
 
-                        <div className="mt-2 space-y-3 max-h-60 overflow-y-auto">
-                          {r.live?.ShipmentData?.[0]?.Shipment?.Scans?.map(
-                            (sc: any, idx: number) => {
-                              const s = sc.ScanDetail;
-                              return (
-                                <div
-                                  key={idx}
-                                  className="p-3 border rounded bg-gray-50"
-                                >
-                                  <div className="flex justify-between">
-                                    <strong>{s.Scan}</strong>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(s.ScanDateTime).toLocaleString()}
-                                    </span>
+                          <div className="mt-2 space-y-3 max-h-60 overflow-y-auto border-l pl-4">
+                            {r.live?.ShipmentData?.[0]?.Shipment?.Scans?.map(
+                              (sc: any, idx: number) => {
+                                const s = sc.ScanDetail;
+                                return (
+                                  <div key={idx} className="p-3 border rounded bg-gray-50">
+                                    <div className="flex justify-between">
+                                      <strong>{s.Scan}</strong>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(s.ScanDateTime).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm">{s.Instructions}</p>
+                                    <p className="text-xs text-gray-600">
+                                      Location: {s.ScannedLocation}
+                                    </p>
                                   </div>
-                                  <p className="text-sm">{s.Instructions}</p>
-                                  <p className="text-xs text-gray-600">
-                                    Location: {s.ScannedLocation}
-                                  </p>
-                                </div>
-                              );
-                            }
-                          )}
-                        </div>
-                      </details>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                                );
+                              }
+                            )}
+                          </div>
+                        </details>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

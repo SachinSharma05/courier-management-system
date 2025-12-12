@@ -12,28 +12,46 @@ export default function CostCalculator() {
   });
 
   const [result, setResult] = useState<any>(null);
+  const [cost, setCost] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
   async function calculate() {
     setLoading(true);
     setResult(null);
+    setCost(null);
+
+    const body = {
+      origin_pin: payload.origin_pincode,
+      destination_pin: payload.destination_pincode,
+      cgm: Number(payload.weight) * 1000, // convert kg → grams
+      mode: payload.service === "express" ? "E" : "S",
+      payment_type: payload.cod_amount ? "COD" : "Pre-paid",
+    };
 
     const r = await fetch("/api/admin/delhivery/calculate-cost", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
 
-    setResult(await r.json());
+    const j = await r.json();
+    setResult(j);
+
+    if (j?.success) {
+      const simplified = simplifyCost(j.result);
+      setCost(simplified);
+    }
+
     setLoading(false);
   }
 
   return (
-    <div className="p-8 space-y-8">
-      <h1 className="text-2xl font-bold">Delhivery – Shipping Cost Calculator</h1>
+    <div className="p-4 space-y-6">
+      <h1 className="text-2xl font-bold">B2C/C2C – Shipping Cost Calculator</h1>
 
       <div className="p-6 bg-white border rounded-xl shadow space-y-3">
-
+        {/* Form */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
           <input
             className="input"
             placeholder="Origin Pincode"
@@ -45,7 +63,9 @@ export default function CostCalculator() {
             className="input"
             placeholder="Destination Pincode"
             value={payload.destination_pincode}
-            onChange={(e) => setPayload({ ...payload, destination_pincode: e.target.value })}
+            onChange={(e) =>
+              setPayload({ ...payload, destination_pincode: e.target.value })
+            }
           />
 
           <input
@@ -57,7 +77,7 @@ export default function CostCalculator() {
 
           <input
             className="input"
-            placeholder="COD Amount"
+            placeholder="COD Amount (optional)"
             value={payload.cod_amount}
             onChange={(e) => setPayload({ ...payload, cod_amount: e.target.value })}
           />
@@ -80,10 +100,59 @@ export default function CostCalculator() {
           {loading ? "Calculating…" : "Calculate"}
         </button>
 
-        {result && (
-          <pre className="bg-gray-100 p-4 rounded text-sm overflow-auto">{JSON.stringify(result, null, 2)}</pre>
+        {/* Summary UI */}
+        {cost && (
+          <div className="mt-6 p-4 bg-white border rounded-xl shadow-sm">
+            <h3 className="text-lg font-semibold mb-3">Shipping Cost Summary</h3>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+
+              <SummaryCard label="Base Charge" value={cost.base_charge} />
+              <SummaryCard label="Fuel Charge" value={cost.fsc} />
+              <SummaryCard label="COD Charge" value={cost.cod_charge} />
+              <SummaryCard label="CGST" value={cost.taxes.cgst} />
+              <SummaryCard label="SGST" value={cost.taxes.sgst} />
+
+              {cost.taxes.igst > 0 && (
+                <SummaryCard label="IGST" value={cost.taxes.igst} />
+              )}
+            </div>
+
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border">
+              <p className="text-gray-700 font-medium">Total Shipping Cost</p>
+              <p className="text-xl font-bold text-blue-700">₹{cost.total}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
   );
+}
+
+function SummaryCard({ label, value }: any) {
+  return (
+    <div className="p-3 bg-gray-50 rounded">
+      <p className="text-gray-600">{label}</p>
+      <p className="font-semibold">₹{value}</p>
+    </div>
+  );
+}
+
+// ---- Simplifier ----
+function simplifyCost(raw: any) {
+  if (!Array.isArray(raw) || !raw.length) return null;
+
+  const r = raw[0];
+
+  return {
+    base_charge: r.charge_base || r.charge_0E || r.charge_02 || 0,
+    fsc: r.charge_FSC || 0,
+    cod_charge: r.charge_cod || 0,
+    taxes: {
+      cgst: r.tax_data?.CGST || 0,
+      sgst: r.tax_data?.SGST || 0,
+      igst: r.tax_data?.IGST || 0,
+    },
+    total: r.total_amount || 0,
+  };
 }

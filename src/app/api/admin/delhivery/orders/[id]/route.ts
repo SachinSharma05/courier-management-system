@@ -3,8 +3,8 @@ import { db } from "@/app/db/postgres";
 import { delhiveryC2CShipments } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 
-export async function GET(req: Request, { params }: any) {
-  const { id } = params;
+export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
 
   try {
     const rows = await db

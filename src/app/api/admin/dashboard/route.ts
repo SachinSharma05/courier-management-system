@@ -49,6 +49,40 @@ async function getProviderStats(provider: string) {
   return { total, delivered, pending, rto };
 }
 
+async function getDelhiveryProviderStats(provider: string) {
+  const jsonLiteral = JSON.stringify([provider]);
+
+  // TOTAL
+  const totalRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM delhivery_c2c_shipments
+  `);
+  const total = Number(totalRes.rows[0].count || 0);
+
+  // DELIVERED
+  const deliveredRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM delhivery_c2c_shipments 
+    WHERE LOWER(current_status) LIKE '%deliver%'
+    AND LOWER(current_status) NOT LIKE '%undeliver%'
+    AND LOWER(current_status) NOT LIKE '%redeliver%'
+  `);
+  const delivered = Number(deliveredRes.rows[0].count || 0);
+
+  // RTO
+  const rtoRes = await db.execute(sql`
+    SELECT COUNT(*) AS count 
+    FROM delhivery_c2c_shipments 
+    WHERE LOWER(current_status) LIKE '%rto%'
+  `);
+  const rto = Number(rtoRes.rows[0].count || 0);
+
+  // PENDING (derived, safest)
+  const pending = total - delivered - rto;
+
+  return { total, delivered, pending, rto };
+}
+
 /* ================================================================
    HELPER: GET TREND PERIOD CONFIGURATION
    filter = "daily" | "weekly" | "monthly"
@@ -96,7 +130,7 @@ export async function GET(req: Request) {
        1) PROVIDER STATISTICS (DTDC, Delhivery, XB, Aramex)
     ------------------------------------------------------------ */
     const dtdc = await getProviderStats("dtdc");
-    const delhivery = await getProviderStats("delhivery");
+    const delhivery = await getDelhiveryProviderStats("delhivery");
     const xpressbees = await getProviderStats("xpressbees");
 
     // Aramex currently unused → return zero

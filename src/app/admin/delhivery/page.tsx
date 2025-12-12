@@ -15,6 +15,7 @@ import {
   FileSearch,
   ClipboardCheck,
   Send,
+  Coins,
 } from "lucide-react";
 
 /* ---------- Reusable Components ---------- */
@@ -154,17 +155,17 @@ export default function DelhiveryDashboard() {
           />
 
           <ToolCard
-            title="Bulk Upload"
-            desc="Upload Excel to track & sync shipments in bulk."
-            href="/admin/delhivery/bulk-upload"
-            icon={<Upload size={20} />}
-          />
-
-          <ToolCard
             title="Track Orders"
             desc="Track single or bulk shipments with AWB."
             href="/admin/delhivery/track"
             icon={<Truck size={20} />}
+          />
+
+          <ToolCard
+            title="Calculate Cost"
+            desc="Calculate shipping costs & transit times."
+            href="/admin/delhivery/cost"
+            icon={<Coins size={20} />}
           />
 
           <ToolCard
@@ -185,7 +186,7 @@ export default function DelhiveryDashboard() {
             title="Update Shipment"
             desc="Update your booking or shipment details."
             href="/admin/delhivery/update"
-            icon={<FileDown size={20} />}
+            icon={<Upload size={20} />}
           />
 
           <ToolCard

@@ -36,7 +36,7 @@ function Counter({ value = 0, duration = 800 }: { value?: number; duration?: num
    ------------------------- */
 const PROVIDERS = [
   { key: "dtdc", name: "DTDC", href: "/admin/dtdc" },
-  { key: "delh", name: "Delhivery", href: "/admin/delhivery" },
+  { key: "delhivery", name: "Delhivery", href: "/admin/delhivery" },
   { key: "xb", name: "XpressBees", href: "/admin/xpressbees" },
   { key: "maruti", name: "Maruti", href: "/admin/maruti" },
 ];
@@ -50,7 +50,6 @@ const COLORS = {
 
 export default function PremiumDashboard() {
   const [stats, setStats] = useState<any>({});
-  const [clients, setClients] = useState<any[]>([]);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
@@ -68,7 +67,6 @@ export default function PremiumDashboard() {
         return;
       }
       setStats(json.providers ?? {});
-      setClients(json.clients ?? []);
       setComplaints(json.complaints ?? []);
       setPie(json.pie ?? { delivered: 0, pending: 0, rto: 0 });
       setTrend(json.trend ?? []);
@@ -161,7 +159,7 @@ export default function PremiumDashboard() {
               const gradient =
                 p.key === "dtdc"
                   ? "from-blue-500 to-blue-700"
-                  : p.key === "delh"
+                  : p.key === "delhivery"
                   ? "from-orange-500 to-red-500"
                   : p.key === "xb"
                   ? "from-yellow-400 to-orange-400"

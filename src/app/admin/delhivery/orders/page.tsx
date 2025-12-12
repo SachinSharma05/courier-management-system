@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function DelhiveryOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -78,7 +79,7 @@ export default function DelhiveryOrdersPage() {
     <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">Delhivery Orders</h1>
+        <h1 className="text-xl font-bold">Delhivery Shipments</h1>
 
         <div className="flex gap-3">
           <button
@@ -194,7 +195,11 @@ export default function DelhiveryOrdersPage() {
             <tbody>
               {orders.map((o) => (
                 <tr key={o.id} className="border-t">
-                  <td className="p-3 font-semibold">{o.awb}</td>
+                  <td className="p-3 font-semibold">
+                    <Link href={`/admin/delhivery/orders/${o.id}`} className="underline">
+                      {o.awb}
+                    </Link>
+                  </td>
                   <td className="p-3">{o.order_id}</td>
                   <td className="p-3">{o.customer_name}</td>
                   <td className="p-3">{o.customer_pincode}</td>

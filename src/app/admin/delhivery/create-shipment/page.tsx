@@ -1,9 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 
-const DEFAULT_PICKUP_PIN = "122003"; // change if needed
+const DEFAULT_PICKUP_PIN = "452010"; // change if needed
 const generateOrderId = () => `VI-${Date.now()}`;
 
 function Input({ label, error, className = "", ...props }: any) {
@@ -259,8 +260,26 @@ export default function CreateDelhiveryShipmentPage() {
   // UI
   // ---------------------------
   return (
-    <div className="p-8 space-y-8">
-      <h1 className="text-2xl font-semibold">Create Delhivery Shipment</h1>
+    
+    <div className="space-y-4 p-2 md:p-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Create Shipment</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Create Delhivery shipments quickly and easily.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+            <Link href={`/admin/delhivery/bulk-shipment`}>
+                <Button
+                  className="bg-orange-600 text-white hover:bg-orange-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+              >
+                Bulk Create Shipment
+              </Button>
+            </Link>
+          </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Form */}

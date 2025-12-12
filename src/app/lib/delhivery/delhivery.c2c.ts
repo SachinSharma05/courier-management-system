@@ -83,7 +83,7 @@ export const dlvC2C = {
 
   // ---- CREATE SHIPMENT ----
   createShipment: (payload: any) =>
-  c2cCall("/api/cmu/create.json", "POST", undefined, payload),
+  c2cCall("/api/cmu/create.json", "POST", payload),
 
   // ---- UPDATE / CANCEL SHIPMENT ----
   updateShipment: (payload: any) =>

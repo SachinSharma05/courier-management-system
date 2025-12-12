@@ -276,22 +276,22 @@ export default function CreateDelhiveryShipmentPage() {
           <h2 className="font-medium mb-3 mt-6">Customer Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Name" value={form.customer_name} error={errors.customer_name}
-              onChange={(e) => update("customer_name", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("customer_name", e.target.value)} />
             <Input label="Phone" value={form.customer_phone} error={errors.customer_phone}
-              onChange={(e) => update("customer_phone", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("customer_phone", e.target.value)} />
           </div>
 
           <Input label="Address"
             value={form.customer_address}
-            onChange={(e) => update("customer_address", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("customer_address", e.target.value)}
           />
 
           <div className="grid grid-cols-2 gap-4">
             <Input label="Pincode" value={form.customer_pincode}
               error={errors.customer_pincode}
-              onChange={(e) => update("customer_pincode", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("customer_pincode", e.target.value)} />
             <Input label="Email (optional)" value={form.customer_email}
-              onChange={(e) => update("customer_email", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("customer_email", e.target.value)} />
           </div>
 
           {/* Box Details */}
@@ -299,19 +299,19 @@ export default function CreateDelhiveryShipmentPage() {
           <div className="grid grid-cols-3 gap-4">
             <Input label="Length (cm)" value={form.length_cm}
               error={errors.length_cm}
-              onChange={(e) => update("length_cm", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("length_cm", e.target.value)} />
             <Input label="Breadth (cm)" value={form.breadth_cm}
               error={errors.breadth_cm}
-              onChange={(e) => update("breadth_cm", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("breadth_cm", e.target.value)} />
             <Input label="Height (cm)" value={form.height_cm}
               error={errors.height_cm}
-              onChange={(e) => update("height_cm", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("height_cm", e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-4 mt-4">
             <Input label="Actual Weight (kg)" value={form.weight_kg}
               error={errors.weight_kg}
-              onChange={(e) => update("weight_kg", e.target.value)} />
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("weight_kg", e.target.value)} />
 
             <div className="bg-blue-50 p-3 rounded border">
               <p className="text-sm text-gray-600">Chargeable Weight</p>
@@ -344,7 +344,7 @@ export default function CreateDelhiveryShipmentPage() {
                 label="COD Amount"
                 value={form.cod_amount}
                 error={errors.cod_amount}
-                onChange={(e) => update("cod_amount", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("cod_amount", e.target.value)}
               />
             )}
           </div>

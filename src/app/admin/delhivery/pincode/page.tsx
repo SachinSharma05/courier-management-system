@@ -21,15 +21,16 @@ export default function DelhiveryPincode() {
     const j = await r.json();
 
     setLoading(false);
-    setData(j.data);
+    setData(j);
   }
 
   async function checkTat() {
   if (!tatOrigin || !tatDest) return;
 
   const r = await fetch(
-    `/api/admin/delhivery/tat?origin=${tatOrigin}&dest=${tatDest}`
+    `/api/admin/delhivery/tat?origin_pin=${tatOrigin}&destination_pin=${tatDest}&mot=S`
   );
+
   const j = await r.json();
 
   if (j.success) {

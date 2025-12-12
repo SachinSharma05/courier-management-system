@@ -20,26 +20,36 @@ export default function DelhiveryOrdersPage() {
 
   const [syncing, setSyncing] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   async function loadOrders() {
-    setLoading(true);
+  setLoading(true);
 
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
-    if (search) params.set("search", search);
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
-    if (pincode) params.set("pincode", pincode);
+  const params = new URLSearchParams();
+  params.set("page", String(page));
+  params.set("limit", String(pageSize));
 
-    const res = await fetch(`/api/admin/delhivery/orders?` + params.toString());
-    const j = await res.json();
+  if (status) params.set("status", status);
+  if (search) params.set("search", search);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  if (pincode) params.set("pincode", pincode);
 
-    if (j.success) setOrders(j.data);
-    setLoading(false);
+  const res = await fetch(`/api/admin/delhivery/orders?` + params.toString());
+  const j = await res.json();
+
+  if (j.success) {
+    setOrders(j.data);
+    setTotalPages(j.totalPages);
   }
 
-  useEffect(() => {
-    loadOrders();
-  }, [status, from, to, pincode]);
+  setLoading(false);
+}
+
+useEffect(() => {
+  loadOrders();
+}, [status, from, to, pincode, page]);
 
   function handleSearch() {
     loadOrders();
@@ -47,7 +57,16 @@ export default function DelhiveryOrdersPage() {
 
   async function bulkSync() {
     setSyncing(true);
-    const awbs = orders.map((o) => o.awb).filter(Boolean);
+
+    const awbs = orders
+      .filter((o) => !String(o.current_status).toLowerCase().includes("deliver"))
+      .map((o) => o.awb);
+
+    if (awbs.length === 0) {
+      alert("No pending shipments to sync.");
+      setSyncing(false);
+      return;
+    }
 
     await fetch("/api/admin/delhivery/track/sync", {
       method: "POST",
@@ -318,6 +337,27 @@ export default function DelhiveryOrdersPage() {
               ))}
             </tbody>
           </table>
+          <div className="flex justify-between items-center py-4">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            <span className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+
+            <button
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

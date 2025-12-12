@@ -109,9 +109,6 @@ export async function POST(req: Request) {
         weight_g: Number(form.weight_kg) * 1000,
         chargeable_weight_g: Number(form.chargeable_kg) * 1000,
 
-        estimated_cost: estimate?.total_amount || null,
-        cost_breakup: estimate || null,
-
         awb,
         current_status: "Created",
 

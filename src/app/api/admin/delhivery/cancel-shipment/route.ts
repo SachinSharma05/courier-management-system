@@ -32,7 +32,7 @@ export async function POST(req: Request) {
         .set({
           current_status: "Cancelled",
           updated_at: new Date(),
-          cancellation_response: result
+          raw_response: result
         })
         .where(eq(delhiveryC2CShipments.awb, awb));
     }

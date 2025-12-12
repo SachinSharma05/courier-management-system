@@ -1,6 +1,6 @@
 // src/app/api/admin/delhivery/generate-label/route.ts
 import { NextResponse } from "next/server";
-import { generateLabel } from "@/app/lib/delhivery/delhivery";
+import { generateLabel } from "@/app/lib/delhivery/delhivery.c2c";
 
 export async function POST(req: Request) {
   try {

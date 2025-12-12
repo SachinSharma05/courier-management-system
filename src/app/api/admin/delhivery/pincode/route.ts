@@ -1,17 +1,19 @@
-// src/app/api/admin/delhivery/pincode/route.ts
 import { NextResponse } from "next/server";
-import { checkPincode } from "@/app/lib/delhivery/delhivery";
+import { dlvC2C } from "@/app/lib/delhivery/delhivery.c2c";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const pincode = url.searchParams.get("pincode");
-  if (!pincode) return NextResponse.json({ error: "pincode required" }, { status: 400 });
-
   try {
-    const res = await checkPincode(pincode);
-    return NextResponse.json(res);
-  } catch (err: any) {
-    console.error("Pincode check failed", err);
-    return NextResponse.json({ error: err?.response ?? err?.message }, { status: err?.status ?? 500 });
+    const url = new URL(req.url);
+    const pin = url.searchParams.get("pin");
+
+    if (!pin) {
+      return NextResponse.json({ error: "pin required" }, { status: 400 });
+    }
+
+    const live = await dlvC2C.pincode(pin);
+
+    return NextResponse.json(live); // return FULL response EXACTLY like Delhivery
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message }, { status: 500 });
   }
 }

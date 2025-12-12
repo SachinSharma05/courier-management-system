@@ -1,25 +1,47 @@
 import { NextResponse } from "next/server";
-import { generateLabel } from "@/app/lib/delhivery/delhivery";
+import { dlvC2C } from "@/app/lib/delhivery/delhivery.c2c";
 
 export async function POST(req: Request) {
   try {
-    const payload = await req.json();
-    const result = await generateLabel(payload);
+    const { awb } = await req.json();
 
-    // If label is base64 PDF from Delhivery
-    if (result?.pdf) {
+    if (!awb) {
+      return NextResponse.json({ error: "AWB required" }, { status: 400 });
+    }
+
+    const result = await dlvC2C.generateLabel(awb);
+
+    console.log("LABEL RESULT RAW:", result);
+
+    const pkg = result?.packages?.[0];
+
+    if (!pkg) {
       return NextResponse.json({
-        base64: result.pdf,
-        filename: `${payload?.awb || "label"}.pdf`,
+        error: "Invalid Delhivery response",
+        response: result
       });
     }
 
-    return NextResponse.json(result);
+    const pdfUrl = pkg.pdf_download_link;
+    const pdfBase64 = pkg.pdf_encoding;
+
+    if (!pdfUrl && !pdfBase64) {
+      return NextResponse.json({
+        error: "Label not available for this AWB",
+        response: result
+      });
+    }
+
+    return NextResponse.json({
+      link: pdfUrl || null,
+      base64: pdfBase64 || null,
+      wbn: pkg.wbn
+    });
+
   } catch (err: any) {
-    console.error("Label download failed:", err);
     return NextResponse.json(
       { error: err?.response ?? err?.message },
-      { status: err?.status ?? 500 }
+      { status: 500 }
     );
   }
 }

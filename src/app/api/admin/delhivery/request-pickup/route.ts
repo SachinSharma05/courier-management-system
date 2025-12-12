@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requestPickup } from "@/app/lib/delhivery/delhivery";
+import { requestPickup } from "@/app/lib/delhivery/delhivery.c2c";
 
 export async function POST(req: Request) {
   try {

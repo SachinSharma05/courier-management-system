@@ -8,6 +8,27 @@
       "when": 1765023100645,
       "tag": "0000_lonely_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1765383971229,
+      "tag": "0001_fixed_sandman",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765442422970,
+      "tag": "0002_empty_devos",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1765443158594,
+      "tag": "0003_striped_ozymandias",
+      "breakpoints": true
     }
   ]
 }

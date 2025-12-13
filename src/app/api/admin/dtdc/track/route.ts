@@ -109,7 +109,7 @@ export async function POST(req: Request) {
         .where(
           and(
             eq(consignments.client_id, clientId),
-            notInArray(consignments.lastStatus, ["DELIVERED", "RTO", "RETAIL"])
+            notInArray(consignments.current_status, ["DELIVERED", "RTO", "RETAIL"])
           )
         );
 
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
     const existing = await db
       .select({
         awb: consignments.awb,
-        lastStatus: consignments.lastStatus,
+        lastStatus: consignments.current_status,
         id: consignments.id
       })
       .from(consignments)
@@ -198,25 +198,30 @@ export async function POST(req: Request) {
 
         bulkConsignmentRows.push({
           awb,
-          lastStatus: header.currentStatus,
+          client_id: clientId,
+          provider: "dtdc",
+
+          current_status: header.currentStatus,
           origin: header.origin,
           destination: header.destination,
-          bookedOn: header.bookedOn,
-          lastUpdatedOn: toJsDate(header.lastUpdatedOn),
-          providers: [provider],
-          client_id: clientId,
-          updatedAt: sql`NOW()`
+
+          booked_at: header.bookedOn ? new Date(header.bookedOn) : null,
+          last_status_at: toJsDate(header.lastUpdatedOn),
+
+          updated_at: sql`NOW()`
         });
 
         for (const t of parsed.timeline) {
+          const eventTime = toJsDate(
+            parseDtdcDateTime(t.strActionDate, t.strActionTime)
+          );
+
           bulkEventRows.push({
             awb,
-            action: t.strAction ?? "",
-            actionDate: parseDtdcDate(t.strActionDate),
-            actionTime: parseDtdcTime(t.strActionTime),
-            origin: t.strOrigin ?? null,
-            destination: t.strDestination ?? null,
-            remarks: t.sTrRemarks ?? t.strRemarks ?? null
+            status: t.strAction ?? "",
+            location: t.strDestination ?? t.strOrigin ?? null,
+            remarks: t.sTrRemarks ?? t.strRemarks ?? null,
+            event_time: eventTime
           });
         }
 
@@ -245,14 +250,14 @@ export async function POST(req: Request) {
       .onConflictDoUpdate({
         target: consignments.awb,
         set: {
-          lastStatus: sql`excluded.last_status`,
+          current_status: sql`excluded.current_status`,
           origin: sql`excluded.origin`,
           destination: sql`excluded.destination`,
-          bookedOn: sql`excluded.booked_on`,
-          lastUpdatedOn: sql`excluded.last_updated_on`,
-          providers: sql`excluded.providers`,
+          booked_at: sql`excluded.booked_at`,
+          last_status_at: sql`excluded.last_status_at`,
+          provider: sql`excluded.provider`,
           client_id: sql`excluded.client_id`,
-          updatedAt: sql`NOW()`
+          updated_at: sql`NOW()`
         }
       });
 
@@ -273,14 +278,15 @@ export async function POST(req: Request) {
       .map(e => {
         const cid = idMap.get(e.awb);
         if (!cid) return null;
+
         return {
-          consignmentId: cid,
-          action: e.action,
-          actionDate: e.actionDate,
-          actionTime: e.actionTime,
-          origin: e.origin,
-          destination: e.destination,
-          remarks: e.remarks
+          consignment_id: cid,
+          provider: "dtdc",
+          awb: e.awb,
+          status: e.status,
+          location: e.location,
+          remarks: e.remarks,
+          event_time: e.event_time
         };
       })
       .filter(Boolean) as any[];

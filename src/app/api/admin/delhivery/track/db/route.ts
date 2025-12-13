@@ -1,29 +1,82 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { delhiveryC2CShipments, delhiveryC2CEvents } from "@/app/db/schema";
-import { eq, desc } from "drizzle-orm";
+import {
+  consignments,
+  providerShipments,
+  trackingEvents,
+} from "@/app/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const awb = url.searchParams.get("awb");
+  try {
+    const url = new URL(req.url);
+    const awb = url.searchParams.get("awb");
 
-  if (!awb) return NextResponse.json({ success: false, error: "AWB required" });
+    if (!awb) {
+      return NextResponse.json(
+        { success: false, error: "AWB required" },
+        { status: 400 }
+      );
+    }
 
-  const shipment = await db
-    .select()
-    .from(delhiveryC2CShipments)
-    .where(eq(delhiveryC2CShipments.awb, awb))
-    .limit(1);
+    // ---------------------------------------
+    // 1️⃣ Fetch master consignment
+    // ---------------------------------------
+    const consignment = await db
+      .select()
+      .from(consignments)
+      .where(eq(consignments.awb, awb))
+      .limit(1);
 
-  const events = await db
-    .select()
-    .from(delhiveryC2CEvents)
-    .where(eq(delhiveryC2CEvents.awb, awb))
-    .orderBy(desc(delhiveryC2CEvents.event_time));
+    if (!consignment.length) {
+      return NextResponse.json({
+        success: true,
+        shipment: null,
+        timeline: [],
+      });
+    }
 
-  return NextResponse.json({
-    success: true,
-    shipment: shipment[0] || null,
-    timeline: events,
-  });
+    const c = consignment[0];
+
+    // ---------------------------------------
+    // 2️⃣ Fetch provider-specific data (Delhivery)
+    // ---------------------------------------
+    const provider = await db
+      .select()
+      .from(providerShipments)
+      .where(
+        and(
+          eq(providerShipments.consignment_id, c.id),
+          eq(providerShipments.provider, "delhivery")
+        )
+      )
+      .limit(1);
+
+    // ---------------------------------------
+    // 3️⃣ Fetch unified tracking timeline
+    // ---------------------------------------
+    const events = await db
+      .select()
+      .from(trackingEvents)
+      .where(eq(trackingEvents.consignment_id, c.id))
+      .orderBy(desc(trackingEvents.event_time));
+
+    // ---------------------------------------
+    // 4️⃣ Shape response (UI-compatible)
+    // ---------------------------------------
+    return NextResponse.json({
+      success: true,
+      shipment: {
+        ...c,
+        provider: provider[0] || null,
+      },
+      timeline: events,
+    });
+  } catch (err: any) {
+    console.error("Delhivery track view error:", err);
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    );
+  }
 }

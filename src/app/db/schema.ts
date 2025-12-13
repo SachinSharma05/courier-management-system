@@ -4,38 +4,99 @@ import { pgTable, serial, text, varchar, timestamp, uuid, date, time, integer, b
 // CONSIGNMENTS
 export const consignments = pgTable("consignments", {
   id: uuid("id").defaultRandom().primaryKey(),
-  awb: varchar("awb", { length: 20 }).notNull().unique(),
-  lastStatus: text("last_status"),
+
+  client_id: integer("client_id").notNull(),
+
+  provider: varchar("provider", { length: 30 }).notNull(), // delhivery | dtdc | maruti
+  awb: varchar("awb", { length: 50 }).notNull().unique(),
+
+  reference_number: varchar("reference_number", { length: 100 }),
+
+  service_type: varchar("service_type", { length: 30 }),
+  payment_mode: varchar("payment_mode", { length: 20 }),
+  cod_amount: numeric("cod_amount", { precision: 12, scale: 2 }),
+
+  origin_pincode: varchar("origin_pincode", { length: 10 }),
+  destination_pincode: varchar("destination_pincode", { length: 10 }),
   origin: text("origin"),
   destination: text("destination"),
-  bookedOn: date("booked_on"),
-  lastUpdatedOn: timestamp("last_updated_on"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  providers: json("providers").$type<string[]>().default([]),
-  client_id: integer("client_id").notNull(), // FK users.id
+
+  length_cm: integer("length_cm"),
+  breadth_cm: integer("breadth_cm"),
+  height_cm: integer("height_cm"),
+  weight_g: integer("weight_g"),
+  chargeable_weight_g: integer("chargeable_weight_g"),
+
+  estimated_cost: numeric("estimated_cost", { precision: 12, scale: 2 }),
+  invoice_amount: numeric("invoice_amount", { precision: 12, scale: 2 }),
+
+  current_status: varchar("current_status", { length: 100 }),
+  expected_delivery_date: timestamp("expected_delivery_date"),
+
+  booked_at: timestamp("booked_at"),
+  last_status_at: timestamp("last_status_at"),
+
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+export const providerShipments = pgTable("provider_shipments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  consignment_id: uuid("consignment_id")
+    .notNull()
+    .references(() => consignments.id, { onDelete: "cascade" }),
+
+  provider: varchar("provider", { length: 30 }).notNull(),
+
+  provider_order_id: varchar("provider_order_id", { length: 100 }),
+  provider_tracking_id: varchar("provider_tracking_id", { length: 100 }),
+
+  provider_awb: varchar("provider_awb", { length: 50 }),
+  provider_cawb: varchar("provider_cawb", { length: 50 }),
+
+  label_url: text("label_url"),
+  manifest_url: text("manifest_url"),
+  pod_url: text("pod_url"),
+
+  raw_request: jsonb("raw_request"),
+  raw_response: jsonb("raw_response"),
+
+  last_synced_at: timestamp("last_synced_at"),
+
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 // TRACKING EVENTS
 export const trackingEvents = pgTable("tracking_events", {
   id: uuid("id").defaultRandom().primaryKey(),
-  consignmentId: uuid("consignment_id").notNull().references(() => consignments.id, { onDelete: "cascade" }),
-  action: text("action"),
-  actionDate: date("action_date"),
-  actionTime: time("action_time"),
-  origin: text("origin"),
-  destination: text("destination"),
+
+  consignment_id: uuid("consignment_id")
+    .notNull()
+    .references(() => consignments.id, { onDelete: "cascade" }),
+
+  provider: varchar("provider", { length: 30 }).notNull(),
+
+  awb: varchar("awb", { length: 50 }).notNull(),
+
+  status: varchar("status", { length: 100 }),
+  location: varchar("location", { length: 200 }),
   remarks: text("remarks"),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  event_time: timestamp("event_time"),
+
+  raw: jsonb("raw"),
+
+  created_at: timestamp("created_at").defaultNow(),
 });
 
 // TRACKING HISTORY LOG
 export const trackingHistory = pgTable("tracking_history", {
   id: uuid("id").defaultRandom().primaryKey(),
-  consignmentId: uuid("consignment_id").references(() => consignments.id),
-  oldStatus: text("old_status"),
-  newStatus: text("new_status"),
-  changedAt: timestamp("changed_at").defaultNow(),
+  consignment_id: uuid("consignment_id"),
+  old_status: text("old_status"),
+  new_status: text("new_status"),
+  changed_at: timestamp("changed_at").defaultNow(),
 });
 
 export const clientCredentials = pgTable(
@@ -158,137 +219,4 @@ export const complaints = pgTable("complaints", {
   // status → open | in_progress | resolved
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const delhiveryShipments = pgTable("delhivery_shipments", {
-  // Primary
-  id: varchar("id", { length: 40 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
-
-  // LRN (LR Number returned after successful manifest)
-  lr_number: varchar("lr_number", { length: 40 }),
-
-  // Order (client order id if any)
-  order_id: varchar("order_id", { length: 100 }),
-
-  // Delhivery metadata
-  manifest_job_id: varchar("manifest_job_id", { length: 100 }),
-  pickup_location_name: varchar("pickup_location_name", { length: 200 }),
-
-  // Consignee
-  consignee_name: varchar("consignee_name", { length: 200 }),
-  consignee_address: text("consignee_address"),
-  consignee_city: varchar("consignee_city", { length: 100 }),
-  consignee_state: varchar("consignee_state", { length: 100 }),
-  consignee_pincode: varchar("consignee_pincode", { length: 10 }),
-  consignee_phone: varchar("consignee_phone", { length: 20 }),
-
-  // Billing address metadata
-  billing_address: jsonb("billing_address"),
-
-  // Shipment Details
-  box_count: integer("box_count"),
-  total_weight_g: integer("total_weight_g"), // Delhivery uses grams
-  dimensions: jsonb("dimensions"),          // array of L/W/H/box_count
-  shipment_details: jsonb("shipment_details"), // array from manifest
-
-  // Invoices (array of multiple invoices)
-  invoices: jsonb("invoices"),
-
-  // Payment / Mode
-  payment_mode: varchar("payment_mode", { length: 20 }), // cod/fop/prepaid
-  cod_amount: integer("cod_amount"),
-  freight_mode: varchar("freight_mode", { length: 20 }), // fop, fod etc.
-  rov_insurance: boolean("rov_insurance"),
-
-  // Dropoff location JSON object
-  dropoff_location: jsonb("dropoff_location"),
-
-  // Document metadata
-  documents_meta: jsonb("documents_meta"),
-  doc_files: jsonb("doc_files"),
-
-  // Status (updated via Track LR API)
-  current_status: varchar("current_status", { length: 50 }),
-  status_updated_at: timestamp("status_updated_at"),
-
-  // Raw tracking response (for debugging)
-  tracking_response: jsonb("tracking_response"),
-
-  // Label / POD URLs
-  label_url: text("label_url"),
-  pod_url: text("pod_url"),
-
-  // Timestamps
-  created_at: timestamp("created_at").default(sql`NOW()`),
-  updated_at: timestamp("updated_at").default(sql`NOW()`),
-});
-
-export const delhiveryC2CShipments = pgTable("delhivery_c2c_shipments", {
-  id: varchar("id", { length: 40 })
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-
-  awb: varchar("awb", { length: 50 }).notNull().unique(),
-
-  order_id: varchar("order_id", { length: 100 }),
-  channel: varchar("channel", { length: 100 }),
-
-  facility_name: varchar("facility_name", { length: 200 }),
-  pickup_address: jsonb("pickup_address"),
-
-  customer_name: varchar("customer_name", { length: 200 }),
-  customer_address: text("customer_address"),                 // must be nullable
-  customer_phone: varchar("customer_phone", { length: 20 }),  // must be nullable
-  customer_email: varchar("customer_email", { length: 100 }),
-  customer_pincode: varchar("customer_pincode", { length: 10 }),
-
-  service_type: varchar("service_type", { length: 20 }),      // must be nullable
-  payment_mode: varchar("payment_mode", { length: 20 }),      // must be nullable
-  cod_amount: integer("cod_amount"),
-
-  length_cm: integer("length_cm"),
-  breadth_cm: integer("breadth_cm"),
-  height_cm: integer("height_cm"),
-  weight_g: integer("weight_g"),
-  chargeable_weight_g: integer("chargeable_weight_g"),
-
-  estimated_cost: integer("estimated_cost"),
-  cost_breakup: jsonb("cost_breakup"),
-
-  label_url: text("label_url"),
-
-  current_status: varchar("current_status", { length: 100 }),
-  latest_status_time: timestamp("latest_status_time"),
-  last_synced_at: timestamp("last_synced_at"),
-
-  origin: varchar("origin", { length: 200 }),
-  destination: varchar("destination", { length: 200 }),
-  expected_delivery_date: timestamp("expected_delivery_date"),
-  invoice_amount: integer("invoice_amount"),
-
-  tracking_response: jsonb("tracking_response"),
-
-  raw_request: jsonb("raw_request"),
-  raw_response: jsonb("raw_response"),
-
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow(),
-});
-
-export const delhiveryC2CEvents = pgTable("delhivery_c2c_events", {
-  id: varchar("id", { length: 40 })
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-
-  awb: varchar("awb", { length: 50 }).notNull(),
-
-  scan: varchar("scan", { length: 200 }),          // e.g., "In Transit"
-  scan_type: varchar("scan_type", { length: 50 }), // e.g., "UD"
-  status_code: varchar("status_code", { length: 50 }),
-  location: varchar("location", { length: 200 }),
-  instructions: text("instructions"),
-  event_time: timestamp("event_time"),
-
-  raw: jsonb("raw"),
-  created_at: timestamp("created_at").defaultNow(),
 });

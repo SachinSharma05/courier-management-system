@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments, clientCredentials } from "@/app/db/schema";
+import { consignments, providerShipments } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/app/lib/crypto/encryption";
 
@@ -8,12 +8,14 @@ const DTDC_BOOK_URL =
   "https://app.shipsy.in/api/customer/integration/consignment/push";
 
 async function loadCreds(clientId: number) {
-  const rows = await db.select().from(clientCredentials).where(eq(clientCredentials.client_id, clientId));
+  const rows = await db
+    .select()
+    .from(clientCredentials)
+    .where(eq(clientCredentials.client_id, clientId));
 
   const creds: any = {};
-  for (const r of rows) {
-    creds[r.env_key] = decrypt(r.encrypted_value);
-  }
+  for (const r of rows) creds[r.env_key] = decrypt(r.encrypted_value);
+
   return {
     token: creds["api_token"],
     customerCode: creds["DTDC_CUSTOMER_CODE"],
@@ -59,15 +61,37 @@ export async function POST(req: Request) {
       const json = await res.json();
 
       if (json?.success && json?.awb) {
-        await db.insert(consignments).values({
-          awb: json.awb,
-          client_id: clientId,
-          providers: ["dtdc"],
-          origin: null,
-          destination: null,
-          lastStatus: "BOOKED",
-        })
-        .onConflictDoNothing();
+        // ----------------------------------
+        // ✅ NEW NORMALIZED DB WRITE
+        // ----------------------------------
+        const [consignment] = await db
+          .insert(consignments)
+          .values({
+            awb: json.awb,
+            client_id: clientId,
+            provider: "dtdc",
+
+            reference_number: item.reference || null,
+
+            destination_pincode: item.pincode ?? null,
+
+            current_status: "BOOKED",
+            booked_at: new Date(),
+          })
+          .onConflictDoNothing()
+          .returning({ id: consignments.id });
+
+        // optional but recommended
+        if (consignment?.id) {
+          await db.insert(providerShipments).values({
+            consignment_id: consignment.id,
+            provider: "dtdc",
+            provider_awb: json.awb,
+            raw_request: payload,
+            raw_response: json,
+            last_synced_at: new Date(),
+          });
+        }
 
         results.push({ ok: true, awb: json.awb });
       } else {
@@ -77,6 +101,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, results });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }

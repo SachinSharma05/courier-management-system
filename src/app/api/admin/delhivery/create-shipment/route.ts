@@ -1,5 +1,5 @@
 import { db } from "@/app/db/postgres";
-import { delhiveryC2CShipments } from "@/app/db/schema";
+import { consignments, providerShipments } from "@/app/db/schema";
 import { NextResponse } from "next/server";
 
 const BASE = process.env.DELHIVERY_C2C_BASE?.replace(/\/$/, "") || "https://track.delhivery.com";
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const form = await req.json();
 
     // -----------------------------
-    // 🟢 Map UI → Delhivery Fields
+    // 🟢 Delhivery logic (UNCHANGED)
     // -----------------------------
     const shipment = {
       name: String(form.customer_name || ""),
@@ -33,12 +33,11 @@ export async function POST(req: Request) {
       shipment_length: String(form.length_cm),
       shipment_width: String(form.breadth_cm),
       shipment_height: String(form.height_cm),
-      weight: String(Math.round(Number(form.chargeable_kg) * 1000)), // grams
+      weight: String(Math.round(Number(form.chargeable_kg) * 1000)),
 
       shipping_mode: form.service_type === "express" ? "Express" : "Surface",
       quantity: "1",
 
-      // Mandatory empty return fields
       return_pin: "",
       return_city: "",
       return_phone: "",
@@ -49,23 +48,13 @@ export async function POST(req: Request) {
 
     const finalPayload = {
       shipments: [shipment],
-      pickup_location: {
-        name: "VARIABLEINSTINCT C2C",
-      },
+      pickup_location: { name: "VARIABLEINSTINCT C2C" },
     };
 
-    // --------------------------------------
-    // 🟢 STRICT CMU FORMAT
-    // --------------------------------------
     const body = new URLSearchParams();
     body.append("format", "json");
     body.append("data", JSON.stringify(finalPayload));
 
-    console.log("📦 FINAL CMU PAYLOAD →", JSON.stringify(finalPayload, null, 2));
-
-    // --------------------------------------
-    // 🟢 SEND REQUEST
-    // --------------------------------------
     const res = await fetch(CREATE_URL, {
       method: "POST",
       headers: {
@@ -77,46 +66,61 @@ export async function POST(req: Request) {
     });
 
     const raw = await res.json();
-    console.log("📦 RAW RESPONSE →", raw);
 
-    // --------------------------------------
-    // 🟢 Extract AWB
-    // --------------------------------------
-    let awb = null;
-
+    // -----------------------------
+    // 🟢 Extract AWB (UNCHANGED)
+    // -----------------------------
+    let awb: string | null = null;
     if (Array.isArray(raw?.packages) && raw.packages.length > 0) {
       awb = raw.packages[0].waybill || raw.packages[0].awb || null;
     }
 
+    // -----------------------------
+    // ✅ NEW DB WRITES (ONLY CHANGE)
+    // -----------------------------
     if (awb) {
-      await db.insert(delhiveryC2CShipments).values({
-        order_id: form.order_id,
-        channel: "VARIABLEINSTINCT C2C",
+      // 1️⃣ Insert master consignment
+      const [consignment] = await db
+        .insert(consignments)
+        .values({
+          client_id: form.client_id ?? 1,
+          provider: "delhivery",
+          awb,
 
-        customer_name: form.customer_name,
-        customer_phone: form.customer_phone,
-        customer_email: form.customer_email || "",
-        customer_address: form.customer_address,
-        customer_pincode: form.customer_pincode,
+          reference_number: form.order_id,
 
-        service_type: form.service_type,
-        payment_mode: form.payment_mode,
-        cod_amount: form.payment_mode === "cod" ? Number(form.cod_amount) : 0,
+          service_type: form.service_type,
+          payment_mode: form.payment_mode,
+          cod_amount: form.payment_mode === "cod" ? Number(form.cod_amount) : 0,
 
-        length_cm: Number(form.length_cm),
-        breadth_cm: Number(form.breadth_cm),
-        height_cm: Number(form.height_cm),
-        weight_g: Number(form.weight_kg) * 1000,
-        chargeable_weight_g: Number(form.chargeable_kg) * 1000,
+          origin: "VARIABLEINSTINCT C2C",
+          destination: form.customer_city,
+          origin_pincode: null,
+          destination_pincode: form.customer_pincode,
 
-        awb,
-        current_status: "Created",
+          length_cm: Number(form.length_cm),
+          breadth_cm: Number(form.breadth_cm),
+          height_cm: Number(form.height_cm),
+          weight_g: Number(form.weight_kg) * 1000,
+          chargeable_weight_g: Number(form.chargeable_kg) * 1000,
+
+          current_status: "Created",
+          booked_at: new Date(),
+        })
+        .returning({ id: consignments.id });
+
+      // 2️⃣ Insert provider shipment (raw Delhivery data)
+      await db.insert(providerShipments).values({
+        consignment_id: consignment.id,
+        provider: "delhivery",
+
+        provider_order_id: form.order_id,
+        provider_awb: awb,
 
         raw_request: form,
         raw_response: raw,
 
-        created_at: new Date(),
-        updated_at: new Date()
+        last_synced_at: new Date(),
       });
     }
 

@@ -214,7 +214,9 @@ export default function DetailPage() {
                 <div className="font-semibold text-lg">{currentStatus?.status ?? "-"}</div>
 
                 <div className="text-xs text-muted-foreground mt-1">
-                  {currentStatus?.date} {currentStatus?.time}
+                  {currentStatus?.date
+                  ? new Date(currentStatus.date).toLocaleString()
+                  : "-"}
                 </div>
               </div>
 
@@ -274,9 +276,9 @@ export default function DetailPage() {
           <CardContent className="space-y-2">
             <Row label="Origin" value={consignment?.origin} />
             <Row label="Destination" value={consignment?.destination} />
-            <Row label="Booked On" value={consignment?.bookedOn} />
-            <Row label="Last Updated" value={consignment?.lastUpdated} />
-            <Row label="Status" value={consignment?.lastStatus} />
+            <Row label="Booked On" value={consignment?.booked_at} />
+            <Row label="Last Updated" value={consignment?.last_status_at} />
+            <Row label="Status" value={consignment?.current_status} />
           </CardContent>
         </Card>
 
@@ -299,7 +301,8 @@ export default function DetailPage() {
                 <div className="space-y-6">
                   {timeline.map((t: any, i: number) => {
 
-                    const type = (t.action || "").toLowerCase();
+                    const type = (t.status || "").toLowerCase();
+                    const eventTime = t.event_time ? new Date(t.event_time) : null;
 
                     const icon =
                       type.includes("deliver") ? <CheckCircle className="h-4 w-4" /> :
@@ -332,12 +335,12 @@ export default function DetailPage() {
                         {/* Details */}
                         <div className="flex-1 pb-4 border-b border-slate-100">
                           <div className="flex items-center justify-between">
-                            <div className="font-semibold">{t.action}</div>
-                            <span className="text-xs text-muted-foreground">{t.time}</span>
+                            <div className="font-semibold">{t.status}</div>
+                            <span className="text-xs text-muted-foreground">{eventTime ? eventTime.toLocaleTimeString() : "-"}</span>
                           </div>
 
                           <div className="text-sm text-muted-foreground mt-1">
-                            {t.origin || t.destination}
+                            {t.location || "-"}
                           </div>
 
                           {t.remarks && (
@@ -345,7 +348,7 @@ export default function DetailPage() {
                           )}
 
                           <div className="text-xs mt-2 font-medium text-slate-600">
-                            {t.date}
+                            {eventTime ? eventTime.toLocaleDateString() : "-"}
                           </div>
                         </div>
 

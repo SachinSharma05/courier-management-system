@@ -1,79 +1,66 @@
 import { NextResponse } from "next/server";
-import { db } from "@/app/db/postgres";
-import {
-  consignments,
-  providerShipments,
-  trackingEvents,
-} from "@/app/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { delhiveryC2C } from "@/app/lib/delhivery/c2c";
+import { upsertDelhiveryTracking } from "@/app/lib/delhivery/upsertTracking";
 
-export async function GET(req: Request) {
+type InputRow = {
+  awb?: string | null;
+  reference_number?: string | null;
+};
+
+export async function POST(req: Request) {
   try {
-    const url = new URL(req.url);
-    const awb = url.searchParams.get("awb");
+    const body = await req.json();
+    const clientId = Number(body?.clientId ?? 1);
+    const rows: InputRow[] = Array.isArray(body?.rows) ? body.rows : [];
 
-    if (!awb) {
+    if (!rows.length) {
       return NextResponse.json(
-        { success: false, error: "AWB required" },
+        { success: false, error: "No rows provided" },
         { status: 400 }
       );
     }
 
-    // ---------------------------------------
-    // 1️⃣ Fetch master consignment
-    // ---------------------------------------
-    const consignment = await db
-      .select()
-      .from(consignments)
-      .where(eq(consignments.awb, awb))
-      .limit(1);
+    const results: any[] = [];
 
-    if (!consignment.length) {
-      return NextResponse.json({
-        success: true,
-        shipment: null,
-        timeline: [],
-      });
+    for (const row of rows) {
+      const awb = row.awb?.trim() || null;
+      const referenceNumber = row.reference_number?.trim() || null;
+
+      try {
+        let live;
+
+        if (awb) {
+          live = await delhiveryC2C("/api/v1/packages/json/", { waybill: awb });
+        } else if (referenceNumber) {
+          live = await delhiveryC2C("/api/v1/packages/json/", { ref_ids: referenceNumber });
+        } else {
+          throw new Error("Missing AWB and Reference No");
+        }
+
+        await upsertDelhiveryTracking(
+          awb ?? `REF-${referenceNumber}`,
+          live,
+          clientId,
+          referenceNumber
+        );
+
+        results.push({ awb, reference_number: referenceNumber, success: true });
+      } catch (err: any) {
+        results.push({
+          awb,
+          reference_number: referenceNumber,
+          success: false,
+          error: err.message,
+        });
+      }
     }
 
-    const c = consignment[0];
-
-    // ---------------------------------------
-    // 2️⃣ Fetch provider-specific data (Delhivery)
-    // ---------------------------------------
-    const provider = await db
-      .select()
-      .from(providerShipments)
-      .where(
-        and(
-          eq(providerShipments.consignment_id, c.id),
-          eq(providerShipments.provider, "delhivery")
-        )
-      )
-      .limit(1);
-
-    // ---------------------------------------
-    // 3️⃣ Fetch unified tracking timeline
-    // ---------------------------------------
-    const events = await db
-      .select()
-      .from(trackingEvents)
-      .where(eq(trackingEvents.consignment_id, c.id))
-      .orderBy(desc(trackingEvents.event_time));
-
-    // ---------------------------------------
-    // 4️⃣ Shape response (UI-compatible)
-    // ---------------------------------------
     return NextResponse.json({
       success: true,
-      shipment: {
-        ...c,
-        provider: provider[0] || null,
-      },
-      timeline: events,
+      total: rows.length,
+      results,
     });
   } catch (err: any) {
-    console.error("Delhivery track view error:", err);
     return NextResponse.json(
       { success: false, error: err.message },
       { status: 500 }

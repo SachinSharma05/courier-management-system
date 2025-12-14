@@ -202,9 +202,9 @@ useEffect(() => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-3">AWB</th>
-                <th className="p-3">Order ID</th>
-                <th className="p-3">Customer</th>
-                <th className="p-3">Pincode</th>
+                <th className="p-3">Reference No</th>
+                <th className="p-3">Origin</th>
+                <th className="p-3">Destination</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Created</th>
                 <th className="p-3">Actions</th>
@@ -215,13 +215,13 @@ useEffect(() => {
               {orders.map((o) => (
                 <tr key={o.id} className="border-t">
                   <td className="p-3 font-semibold">
-                    <Link href={`/admin/delhivery/orders/${o.id}`} className="underline">
+                    <Link href={`/admin/delhivery/orders/${o.awb}`} className="text-primary underline">
                       {o.awb}
                     </Link>
                   </td>
-                  <td className="p-3">{o.order_id}</td>
-                  <td className="p-3">{o.customer_name}</td>
-                  <td className="p-3">{o.customer_pincode}</td>
+                  <td className="p-3">{o.reference_number}</td>
+                  <td className="p-3">{o.origin}</td>
+                  <td className="p-3">{o.destination}</td>
 
                   {/* Status Badge */}
                   <td className="p-3">
@@ -247,30 +247,26 @@ useEffect(() => {
                         </SheetHeader>
 
                         <div className="mt-6 max-h-[75vh] overflow-y-auto space-y-6 pr-2">
-                          {o.tracking_response?.ShipmentData?.[0]?.Shipment?.Scans?.length ? (
-                            o.tracking_response.ShipmentData[0].Shipment.Scans.map(
-                              (s: any, i: number) => (
-                                <div key={i} className="border-b pb-4">
-                                  <div className="text-xs text-gray-500">
-                                    {s.ScanDetail.ScanDateTime}
-                                  </div>
-
-                                  <div className="font-semibold">
-                                    {s.ScanDetail.Status || s.ScanDetail.Scan}
-                                  </div>
-
-                                  <div className="text-sm text-gray-500">
-                                    {s.ScanDetail.ScannedLocation || s.ScanDetail.StatusLocation}
-                                  </div>
-
-                                  {s.ScanDetail.Instructions && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {s.ScanDetail.Instructions}
-                                    </div>
-                                  )}
+                          {o.timeline?.length ? (
+                            o.timeline.map((t: any, i: number) => (
+                              <div key={i} className="border-b pb-4">
+                                <div className="text-xs text-gray-500">
+                                  {new Date(t.event_time).toLocaleString()}
                                 </div>
-                              )
-                            )
+
+                                <div className="font-semibold">{t.status}</div>
+
+                                <div className="text-sm text-gray-500">
+                                  {t.location}
+                                </div>
+
+                                {t.remarks && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {t.remarks}
+                                  </div>
+                                )}
+                              </div>
+                            ))
                           ) : (
                             <p className="text-gray-500">No timeline available.</p>
                           )}
@@ -296,25 +292,33 @@ useEffect(() => {
 
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div><strong>Status:</strong> {o.current_status}</div>
-                            <div><strong>Booked:</strong> {o.created_at}</div>
-                            <div><strong>Origin:</strong> Indore</div>
-                            <div><strong>Destination:</strong> {o.customer_pincode}</div>
+                            <div><strong>Booked:</strong> {new Date(o.created_at).toLocaleDateString()}</div>
+                            <div><strong>Origin:</strong> {o.origin}</div>
+                            <div><strong>Destination:</strong> {o.destination}</div>
                           </div>
 
                           <div>
                             <h4 className="text-lg font-semibold mb-3">Timeline</h4>
-                            {o.tracking_response?.ShipmentData?.[0]?.Shipment?.Scans?.length ? (
-                              o.tracking_response.ShipmentData[0].Shipment.Scans.map(
-                                (s: any, i: number) => (
-                                  <div key={i} className="border-b pb-3">
-                                    <div className="text-xs text-gray-500">{s.ScanDetail.ScanDateTime}</div>
-                                    <div className="font-medium">{s.ScanDetail.Status}</div>
-                                    <div className="text-sm text-gray-500">
-                                      {s.ScanDetail.ScannedLocation}
-                                    </div>
+                            {o.timeline?.length ? (
+                              o.timeline.map((t: any, i: number) => (
+                                <div key={i} className="border-b pb-4">
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(t.event_time).toLocaleString()}
                                   </div>
-                                )
-                              )
+
+                                  <div className="font-semibold">{t.status}</div>
+
+                                  <div className="text-sm text-gray-500">
+                                    {t.location}
+                                  </div>
+
+                                  {t.remarks && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {t.remarks}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
                             ) : (
                               <p className="text-gray-500">No timeline available.</p>
                             )}

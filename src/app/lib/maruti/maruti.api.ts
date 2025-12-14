@@ -1,5 +1,4 @@
 // lib/providers/maruti/maruti.api.ts
-import axios from "axios";
 
 const BASE_URL = process.env.MARUTI_BASE_URL!;
 const USERNAME = process.env.MARUTI_USERNAME!;
@@ -8,73 +7,129 @@ const PASSWORD = process.env.MARUTI_PASSWORD!;
 let accessToken: string | null = null;
 let tokenExpiry = 0;
 
-// ---------- AUTH ----------
+/* ----------------------------------------
+   AUTH
+----------------------------------------- */
 async function getAccessToken() {
   if (accessToken && Date.now() < tokenExpiry) return accessToken;
 
-  const res = await axios.post(
+  const res = await fetch(
     `${BASE_URL}/fulfillment/public/seller/auth/login`,
-    { username: USERNAME, password: PASSWORD }
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: USERNAME,
+        password: PASSWORD,
+      }),
+    }
   );
 
-  accessToken = res.data.accessToken;
-  tokenExpiry = Date.now() + 23 * 60 * 60 * 1000; // 23 hrs
+  if (!res.ok) {
+    throw new Error("Maruti auth failed");
+  }
+
+  const json = await res.json();
+
+  accessToken = json.accessToken;
+  tokenExpiry = Date.now() + 23 * 60 * 60 * 1000; // 23 hours
+
   return accessToken;
 }
 
 async function authHeaders() {
   const token = await getAccessToken();
-  return { Authorization: `Bearer ${token}` };
+  return {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
 }
 
-// ---------- BOOKING ----------
+/* ----------------------------------------
+   BOOKING
+----------------------------------------- */
 export async function marutiCreateOrder(payload: any) {
-  return axios.post(
+  const res = await fetch(
     `${BASE_URL}/fulfillment/public/seller/order/create`,
-    payload,
-    { headers: await authHeaders() }
-  );
-}
-
-// ---------- LABEL ----------
-export async function marutiDownloadLabel(awb: string, cAwb: string) {
-  return axios.get(
-    `${BASE_URL}/fulfillment/public/seller/order/download/label-invoice`,
     {
+      method: "POST",
       headers: await authHeaders(),
-      params: { awbNumber: awb, cAwbNumber: cAwb },
+      body: JSON.stringify(payload),
     }
   );
+
+  return res.json();
 }
 
-// ---------- MANIFEST ----------
+/* ----------------------------------------
+   LABEL
+----------------------------------------- */
+export async function marutiDownloadLabel(
+  awbNumber: string,
+  cAwbNumber: string
+) {
+  const url = new URL(
+    `${BASE_URL}/fulfillment/public/seller/order/download/label-invoice`
+  );
+
+  url.searchParams.set("awbNumber", awbNumber);
+  url.searchParams.set("cAwbNumber", cAwbNumber);
+
+  const res = await fetch(url.toString(), {
+    headers: await authHeaders(),
+  });
+
+  return res.arrayBuffer(); // usually PDF
+}
+
+/* ----------------------------------------
+   MANIFEST
+----------------------------------------- */
 export async function marutiCreateManifest(data: {
   awbNumber?: string[];
   cAwbNumber?: string[];
 }) {
-  return axios.post(
+  const res = await fetch(
     `${BASE_URL}/fulfillment/public/seller/order/create-manifest`,
-    data,
-    { headers: await authHeaders() }
+    {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify(data),
+    }
   );
+
+  return res.json();
 }
 
-// ---------- TRACK ----------
-export async function marutiTrackOrder(awb: string) {
-  return axios.get(
+// ✅ LIVE TRACK
+export async function marutiTrackShipment(awb: string) {
+  const res = await fetch(
     `${BASE_URL}/fulfillment/public/seller/order/order-tracking/${awb}`,
     { headers: await authHeaders() }
   );
+
+  if (!res.ok) {
+    throw new Error(`Maruti track failed: ${res.status}`);
+  }
+
+  return res.json();
 }
 
-// ---------- CANCEL ----------
+/* ----------------------------------------
+   CANCEL
+----------------------------------------- */
 export async function marutiCancelOrder(data: {
   awbNumber?: string;
   cAwbNumber?: string;
 }) {
-  return axios.post(
+  const res = await fetch(
     `${BASE_URL}/fulfillment/public/seller/order/cancel`,
-    data,
-    { headers: await authHeaders() }
+    {
+      method: "POST",
+      headers: await authHeaders(),
+      body: JSON.stringify(data),
+    }
   );
+
+  return res.json();
 }

@@ -121,21 +121,17 @@ export async function POST(req: Request) {
         continue;
       }
 
-      /* ---------------------------------------------
-         IF549 MUST BE SKIPPED COMPLETELY (NEW LOGIC)
-      --------------------------------------------- */
+      // 🚫 IF549 skip (UNCHANGED)
       if (code === "IF549") {
         finalResults.push({
           code,
           skipped: true,
           message: "IF549 is excluded from processing",
         });
-        continue; // 🚀 STOP — DO NOT SAVE OR TRACK
+        continue;
       }
 
-      /* ---------------------------------------------
-         RESOLVE CLIENT ID
-      --------------------------------------------- */
+      // Resolve clientId (UNCHANGED)
       const credsRows = await db
         .select()
         .from(clientCredentials)
@@ -150,9 +146,6 @@ export async function POST(req: Request) {
       }
       clientId = clientId ?? 1;
 
-      /* ---------------------------------------------
-         LOAD DTDC CREDS
-      --------------------------------------------- */
       const creds = await loadDtdcCredentials(clientId);
       if (!creds.token || !creds.customerCode) {
         finalResults.push({
@@ -164,32 +157,29 @@ export async function POST(req: Request) {
       }
 
       /* ---------------------------------------------
-         PRELOAD CONSIGNMENTS
+         PRELOAD CONSIGNMENTS (UPDATED COLUMNS)
       --------------------------------------------- */
       const existingRows = await db
         .select({
           awb: consignments.awb,
           id: consignments.id,
-          lastStatus: consignments.lastStatus,
+          current_status: consignments.current_status,
           origin: consignments.origin,
           destination: consignments.destination,
-          bookedOn: consignments.bookedOn,
-          lastUpdatedOn: consignments.lastUpdatedOn,
+          booked_at: consignments.booked_at,
+          last_status_at: consignments.last_status_at,
         })
         .from(consignments)
         .where(inArray(consignments.awb, awbs));
 
       const existingMap = new Map(existingRows.map((r) => [r.awb, r]));
 
-      /* ---------------------------------------------
-         STORAGE ARRAYS
-      --------------------------------------------- */
       const bulkConsignmentRows: any[] = [];
       const bulkEventRows: any[] = [];
       const bulkHistoryRows: any[] = [];
 
       /* ---------------------------------------------
-         BATCH PROCESS AWBs
+         BATCH PROCESS AWBs (UNCHANGED LOGIC)
       --------------------------------------------- */
       const batches = chunk(awbs, 25);
 
@@ -219,31 +209,30 @@ export async function POST(req: Request) {
               bulkConsignmentRows.push({
                 awb,
                 client_id: clientId,
-                providers: ["dtdc"],
+                provider: "dtdc",
                 origin: prev?.origin ?? null,
                 destination: prev?.destination ?? null,
-                bookedOn: prev?.bookedOn ?? null,
-                lastUpdatedOn: prev?.lastUpdatedOn ?? null,
-                lastStatus: "NO DATA FOUND",
-                updatedAt: sql`NOW()`,
+                booked_at: prev?.booked_at ?? null,
+                last_status_at: prev?.last_status_at ?? null,
+                current_status: "NO DATA FOUND",
+                updated_at: sql`NOW()`,
               });
               return;
             }
 
             const parsed = parseDTDCResponse(json);
-
             if (parsed.error) {
               const prev = existingMap.get(awb);
               bulkConsignmentRows.push({
                 awb,
                 client_id: clientId,
-                providers: ["dtdc"],
+                provider: "dtdc",
                 origin: prev?.origin ?? null,
                 destination: prev?.destination ?? null,
-                bookedOn: prev?.bookedOn ?? null,
-                lastUpdatedOn: prev?.lastUpdatedOn ?? null,
-                lastStatus: "NO DATA FOUND",
-                updatedAt: sql`NOW()`,
+                booked_at: prev?.booked_at ?? null,
+                last_status_at: prev?.last_status_at ?? null,
+                current_status: "NO DATA FOUND",
+                updated_at: sql`NOW()`,
               });
               return;
             }
@@ -251,29 +240,31 @@ export async function POST(req: Request) {
             const hdr = parsed.header!;
             const timeline = parsed.timeline;
             const prev = existingMap.get(awb);
-            const prevStatus = prev?.lastStatus ?? null;
+            const prevStatus = prev?.current_status ?? null;
 
             bulkConsignmentRows.push({
               awb,
               client_id: clientId,
-              providers: ["dtdc"],
+              provider: "dtdc",
               origin: hdr.origin ?? null,
               destination: hdr.destination ?? null,
-              bookedOn: hdr.bookedOn ?? null,
-              lastUpdatedOn: toJsDate(hdr.lastUpdatedOn),
-              lastStatus: hdr.currentStatus ?? null,
-              updatedAt: sql`NOW()`,
+              booked_at: hdr.bookedOn ? new Date(hdr.bookedOn) : null,
+              last_status_at: toJsDate(hdr.lastUpdatedOn),
+              current_status: hdr.currentStatus ?? null,
+              updated_at: sql`NOW()`,
             });
 
             for (const t of timeline) {
+              const eventTime = toJsDate(
+                parseDtdcDateTime(t.strActionDate, t.strActionTime)
+              );
+
               bulkEventRows.push({
                 awb,
-                action: t.strAction ?? "",
-                actionDate: parseDtdcDate(t.strActionDate),
-                actionTime: parseDtdcTime(t.strActionTime),
-                origin: t.strOrigin ?? null,
-                destination: t.strDestination ?? null,
+                status: t.strAction ?? "",
+                location: t.strDestination ?? t.strOrigin ?? null,
                 remarks: t.sTrRemarks ?? t.strRemarks ?? null,
+                event_time: eventTime,
               });
             }
 
@@ -285,18 +276,18 @@ export async function POST(req: Request) {
                 newStatus,
               });
             }
-          } catch (err) {
+          } catch {
             const prev = existingMap.get(awb);
             bulkConsignmentRows.push({
               awb,
               client_id: clientId,
-              providers: ["dtdc"],
+              provider: "dtdc",
               origin: prev?.origin ?? null,
               destination: prev?.destination ?? null,
-              bookedOn: prev?.bookedOn ?? null,
-              lastUpdatedOn: prev?.lastUpdatedOn ?? null,
-              lastStatus: "NO DATA FOUND",
-              updatedAt: sql`NOW()`,
+              booked_at: prev?.booked_at ?? null,
+              last_status_at: prev?.last_status_at ?? null,
+              current_status: "NO DATA FOUND",
+              updated_at: sql`NOW()`,
             });
           }
         });
@@ -305,7 +296,7 @@ export async function POST(req: Request) {
       }
 
       /* ---------------------------------------------
-         UPSERT CONSIGNMENTS
+         UPSERT CONSIGNMENTS (UPDATED)
       --------------------------------------------- */
       if (bulkConsignmentRows.length > 0) {
         await db
@@ -314,14 +305,14 @@ export async function POST(req: Request) {
           .onConflictDoUpdate({
             target: consignments.awb,
             set: {
-              lastStatus: sql`excluded.last_status`,
-              bookedOn: sql`excluded.booked_on`,
-              lastUpdatedOn: sql`excluded.last_updated_on`,
+              current_status: sql`excluded.current_status`,
+              booked_at: sql`excluded.booked_at`,
+              last_status_at: sql`excluded.last_status_at`,
               origin: sql`excluded.origin`,
               destination: sql`excluded.destination`,
-              providers: sql`excluded.providers`,
+              provider: sql`excluded.provider`,
               client_id: sql`excluded.client_id`,
-              updatedAt: sql`NOW()`,
+              updated_at: sql`NOW()`,
             },
           });
       }
@@ -337,20 +328,20 @@ export async function POST(req: Request) {
       const idMap = new Map(allCons.map((r) => [r.awb, r.id]));
 
       /* ---------------------------------------------
-         INSERT EVENTS (200 BATCH)
+         INSERT EVENTS (UPDATED SCHEMA)
       --------------------------------------------- */
       const eventInsertValues = bulkEventRows
         .map((e) => {
           const cid = idMap.get(e.awb);
           if (!cid) return null;
           return {
-            consignmentId: String(cid),
-            action: e.action,
-            actionDate: e.actionDate,
-            actionTime: e.actionTime,
-            origin: e.origin,
-            destination: e.destination,
+            consignment_id: cid,
+            provider: "dtdc",
+            awb: e.awb,
+            status: e.status,
+            location: e.location,
             remarks: e.remarks,
+            event_time: e.event_time,
           };
         })
         .filter(Boolean) as any[];
@@ -363,7 +354,7 @@ export async function POST(req: Request) {
       }
 
       /* ---------------------------------------------
-         INSERT HISTORY (200 BATCH)
+         INSERT HISTORY (UNCHANGED)
       --------------------------------------------- */
       const historyInsertValues = bulkHistoryRows
         .map((h) => {

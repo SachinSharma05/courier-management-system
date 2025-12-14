@@ -79,42 +79,49 @@ export async function POST(req: Request) {
     // ✅ NEW DB WRITES (ONLY CHANGE)
     // -----------------------------
     if (awb) {
-      // 1️⃣ Insert master consignment
-      const [consignment] = await db
-        .insert(consignments)
-        .values({
-          client_id: form.client_id ?? 1,
-          provider: "delhivery",
-          awb,
+    // 1️⃣ Insert master consignment
+    const [consignment] = await db
+      .insert(consignments)
+      .values({
+        client_id: 1, // ✅ STRING
+        provider: "delhivery",
+        awb,
 
-          reference_number: form.order_id,
+        reference_number: form.order_id ?? null,
 
-          service_type: form.service_type,
-          payment_mode: form.payment_mode,
-          cod_amount: form.payment_mode === "cod" ? Number(form.cod_amount) : 0,
+        service_type: form.service_type ?? null,
+        payment_mode: form.payment_mode ?? null,
+        cod_amount:
+          form.payment_mode === "cod"
+            ? Number(form.cod_amount || 0)
+            : 0,
 
-          origin: "VARIABLEINSTINCT C2C",
-          destination: form.customer_city,
-          origin_pincode: null,
-          destination_pincode: form.customer_pincode,
+        origin: "VARIABLEINSTINCT C2C",
+        destination: form.customer_city ?? null,
 
-          length_cm: Number(form.length_cm),
-          breadth_cm: Number(form.breadth_cm),
-          height_cm: Number(form.height_cm),
-          weight_g: Number(form.weight_kg) * 1000,
-          chargeable_weight_g: Number(form.chargeable_kg) * 1000,
+        origin_pincode: null,
+        destination_pincode: String(form.customer_pincode), // ✅ STRING
 
-          current_status: "Created",
-          booked_at: new Date(),
-        })
-        .returning({ id: consignments.id });
+        length_cm: Number(form.length_cm || 0),
+        breadth_cm: Number(form.breadth_cm || 0),
+        height_cm: Number(form.height_cm || 0),
 
-      // 2️⃣ Insert provider shipment (raw Delhivery data)
+        weight_g: Number(form.weight_kg || 0) * 1000,
+        chargeable_weight_g: Number(form.chargeable_kg || 0) * 1000,
+
+        current_status: "Created",
+        booked_at: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .returning({ id: consignments.id });
+
+      // 2️⃣ Insert provider shipment
       await db.insert(providerShipments).values({
         consignment_id: consignment.id,
         provider: "delhivery",
 
-        provider_order_id: form.order_id,
+        provider_order_id: form.order_id ?? null,
         provider_awb: awb,
 
         raw_request: form,

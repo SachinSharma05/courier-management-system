@@ -1,64 +1,62 @@
-// lib/tracking/upsertMarutiTracking.ts
 import { db } from "@/app/db/postgres";
 import { consignments, trackingEvents } from "@/app/db/schema";
 import { and, eq } from "drizzle-orm";
 
-type TrackingInput = {
-  awb: string;
-  status: string;
-  location?: string;
-  remarks?: string;
-  eventTime?: Date;
-  raw?: any;
-};
+export async function upsertMarutiTracking(
+  awb: string,
+  live: any
+) {
+  const events = live?.trackingHistory || [];
+  const currentStatus = live?.currentStatus || "Unknown";
 
-export async function upsertMarutiTracking(input: TrackingInput) {
-  // 1️⃣ Find consignment
-  const consignment = await db
+  // 1️⃣ Ensure consignment exists
+  const [c] = await db
     .select({ id: consignments.id })
     .from(consignments)
-    .where(eq(consignments.awb, input.awb))
+    .where(eq(consignments.awb, awb))
     .limit(1);
 
-  if (!consignment.length) return;
-  const consignmentId = consignment[0].id;
+  if (!c) return;
 
-  const eventTime = input.eventTime ?? new Date();
+  // 2️⃣ Insert tracking events (dedup)
+  for (const e of events) {
+    const eventTime = e.eventDateTime
+      ? new Date(e.eventDateTime)
+      : new Date();
 
-  // 2️⃣ Dedup check
-  const exists = await db
-    .select()
-    .from(trackingEvents)
-    .where(
-      and(
-        eq(trackingEvents.consignment_id, consignmentId),
-        eq(trackingEvents.status, input.status),
-        eq(trackingEvents.event_time, eventTime)
+    const exists = await db
+      .select()
+      .from(trackingEvents)
+      .where(
+        and(
+          eq(trackingEvents.consignment_id, c.id),
+          eq(trackingEvents.status, e.status),
+          eq(trackingEvents.event_time, eventTime)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  if (exists.length) return;
+    if (exists.length) continue;
 
-  // 3️⃣ Insert event
-  await db.insert(trackingEvents).values({
-    consignment_id: consignmentId,
-    provider: "maruti",
-    awb: input.awb,
-    status: input.status,
-    location: input.location,
-    remarks: input.remarks,
-    event_time: eventTime,
-    raw: input.raw,
-  });
+    await db.insert(trackingEvents).values({
+      consignment_id: c.id,
+      provider: "maruti",
+      awb,
+      status: e.status,
+      location: e.location || null,
+      remarks: e.remarks || null,
+      event_time: eventTime,
+      raw: e,
+    });
+  }
 
-  // 4️⃣ Update master consignment status
+  // 3️⃣ Update master consignment
   await db
     .update(consignments)
     .set({
-      current_status: input.status,
-      last_status_at: eventTime,
+      current_status: currentStatus,
+      last_status_at: new Date(),
       updated_at: new Date(),
     })
-    .where(eq(consignments.id, consignmentId));
+    .where(eq(consignments.id, c.id));
 }

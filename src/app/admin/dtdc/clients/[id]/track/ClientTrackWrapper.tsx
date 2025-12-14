@@ -393,7 +393,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                           className={`${delivered ? "bg-green-50" : ""} hover:bg-gray-100 transition`}
                         >
                           <TableCell className="font-medium w-[140px]">
-                            <Link href={`/admin/dtdc/clients/${id}/details?awb=${r.awb}`} className="bg-green-50">
+                            <Link href={`/admin/dtdc/clients/${id}/details?awb=${r.awb}`} className="text-primary underline">
                               {r.awb}
                             </Link>
                           </TableCell>
@@ -421,10 +421,23 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                                   {r.timeline?.length ? (
                                     r.timeline.map((t: any, i: number) => (
                                       <div key={i} className="border-b pb-4">
-                                        <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
-                                        <div className="font-semibold">{t.action}</div>
-                                        <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
-                                        {t.remarks && <div className="text-xs text-gray-500 mt-1">{t.remarks}</div>}
+                                        <div className="text-xs text-gray-500">
+                                          {t.event_time
+                                            ? new Date(t.event_time).toLocaleString()
+                                            : "-"}
+                                        </div>
+
+                                        <div className="font-semibold">{t.status}</div>
+
+                                        <div className="text-sm text-gray-500">
+                                          {t.location || "-"}
+                                        </div>
+
+                                        {t.remarks && (
+                                          <div className="text-xs text-gray-500 mt-1">
+                                            {t.remarks}
+                                          </div>
+                                        )}
                                       </div>
                                     ))
                                   ) : (
@@ -479,18 +492,26 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
                                   <div>
                                     <h4 className="text-lg font-semibold mb-3">Timeline</h4>
                                     {r.timeline?.length ? (
-                                      <div className="space-y-4">
-                                        {r.timeline.map((t: any, i: number) => (
-                                          <div key={i} className="border-b pb-3">
-                                            <div className="text-xs text-gray-500">{t.actionDate} {t.actionTime}</div>
-                                            <div className="font-medium">{t.action}</div>
-                                            <div className="text-sm text-gray-500">{t.origin || t.destination}</div>
+                                    <div className="space-y-4">
+                                      {r.timeline.map((t: any, i: number) => (
+                                        <div key={i} className="border-b pb-3">
+                                          <div className="text-xs text-gray-500">
+                                            {t.event_time
+                                              ? new Date(t.event_time).toLocaleString()
+                                              : "-"}
                                           </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <p className="text-gray-500">No timeline available.</p>
-                                    )}
+
+                                          <div className="font-medium">{t.status}</div>
+
+                                          <div className="text-sm text-gray-500">
+                                            {t.location || "-"}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-gray-500">No timeline available.</p>
+                                  )}
                                   </div>
                                 </div>
                               </SheetContent>

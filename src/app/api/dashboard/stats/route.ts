@@ -8,38 +8,59 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const provider = searchParams.get("provider");
+
     if (!provider) {
-      return NextResponse.json({ error: "Missing provider query param" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing provider query param" },
+        { status: 400 }
+      );
     }
+
     const p = provider.toLowerCase().trim();
-    const providerJsonb = JSON.stringify([p]);
 
-    // provider-level totals (keep using your existing proven queries)
-    const totalRes = await db.select({ count: sql<number>`COUNT(*)` })
+    // ---------------------------------------------
+    // PROVIDER-LEVEL TOTALS (LOGIC UNCHANGED)
+    // ---------------------------------------------
+    const totalRes = await db
+      .select({ count: sql<number>`COUNT(*)` })
       .from(consignments)
-      .where(sql`providers::jsonb @> ${sql.raw(`'${providerJsonb}'::jsonb`)}`);
-    const deliveredRes = await db.select({ count: sql<number>`COUNT(*)` })
-      .from(consignments)
-      .where(sql`providers::jsonb @> ${sql.raw(`'${providerJsonb}'::jsonb`)} 
-                  AND LOWER(last_status) LIKE '%deliver%'`);
-    const rtoRes = await db.select({ count: sql<number>`COUNT(*)` })
-      .from(consignments)
-      .where(sql`providers::jsonb @> ${sql.raw(`'${providerJsonb}'::jsonb`)} 
-                  AND (
-                    LOWER(last_status) LIKE '%rto%'
-                    OR LOWER(last_status) LIKE '%return%'
-                    OR LOWER(last_status) LIKE '%returned%'
-                    OR LOWER(last_status) LIKE '%return to origin%'
-                    OR LOWER(last_status) LIKE '%RTO In Transit%'
-                    OR LOWER(last_status) LIKE '%RTO%'
-                  )`);
+      .where(sql`LOWER(provider) = ${p}`);
 
-    const totalProviderCount = Number(totalRes[0].count ?? 0);
-    const totalDelivered = Number(deliveredRes[0].count ?? 0);
-    const totalRto = Number(rtoRes[0].count ?? 0);
-    const totalPending = totalProviderCount - totalDelivered - totalRto;
+    const deliveredRes = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(consignments)
+      .where(
+        sql`
+          LOWER(provider) = ${p}
+          AND LOWER(current_status) LIKE '%deliver%'
+        `
+      );
 
-    // client-wise aggregation — use SUM(CASE...) to mirror Track page logic exactly
+    const rtoRes = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(consignments)
+      .where(
+        sql`
+          LOWER(provider) = ${p}
+          AND (
+            LOWER(current_status) LIKE '%rto%'
+            OR LOWER(current_status) LIKE '%return%'
+            OR LOWER(current_status) LIKE '%returned%'
+            OR LOWER(current_status) LIKE '%return to origin%'
+            OR LOWER(current_status) LIKE '%rto in transit%'
+          )
+        `
+      );
+
+    const totalProviderCount = Number(totalRes[0]?.count ?? 0);
+    const totalDelivered = Number(deliveredRes[0]?.count ?? 0);
+    const totalRto = Number(rtoRes[0]?.count ?? 0);
+    const totalPending =
+      totalProviderCount - totalDelivered - totalRto;
+
+    // ---------------------------------------------
+    // CLIENT-WISE AGGREGATION (SAME LOGIC)
+    // ---------------------------------------------
     let clientStats: any[] = [];
 
     if (p === "dtdc") {
@@ -50,29 +71,33 @@ export async function GET(req: Request) {
 
           COUNT(*)::bigint AS total,
 
-          SUM(CASE WHEN LOWER(co.last_status) LIKE '%deliver%' THEN 1 ELSE 0 END)::bigint AS delivered,
+          SUM(
+            CASE
+              WHEN LOWER(co.current_status) LIKE '%deliver%' THEN 1
+              ELSE 0
+            END
+          )::bigint AS delivered,
 
           SUM(
             CASE
-              WHEN LOWER(co.last_status) LIKE '%rto%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%return%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%returned%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%return to origin%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%RTO In Transit%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%RTO%' THEN 1
-              WHEN LOWER(co.last_status) LIKE '%rto in transit%' THEN 1
+              WHEN LOWER(co.current_status) LIKE '%rto%' THEN 1
+              WHEN LOWER(co.current_status) LIKE '%return%' THEN 1
+              WHEN LOWER(co.current_status) LIKE '%returned%' THEN 1
+              WHEN LOWER(co.current_status) LIKE '%return to origin%' THEN 1
+              WHEN LOWER(co.current_status) LIKE '%rto in transit%' THEN 1
               ELSE 0
             END
           )::bigint AS rto,
 
-          (COUNT(*) 
-            - SUM(CASE WHEN LOWER(co.last_status) LIKE '%deliver%' THEN 1 ELSE 0 END)
+          (
+            COUNT(*)
+            - SUM(CASE WHEN LOWER(co.current_status) LIKE '%deliver%' THEN 1 ELSE 0 END)
             - SUM(
                 CASE
-                  WHEN LOWER(co.last_status) LIKE '%rto%' THEN 1
-                  WHEN LOWER(co.last_status) LIKE '%return%' THEN 1
-                  WHEN LOWER(co.last_status) LIKE '%returned%' THEN 1
-                  WHEN LOWER(co.last_status) LIKE '%return to origin%' THEN 1
+                  WHEN LOWER(co.current_status) LIKE '%rto%' THEN 1
+                  WHEN LOWER(co.current_status) LIKE '%return%' THEN 1
+                  WHEN LOWER(co.current_status) LIKE '%returned%' THEN 1
+                  WHEN LOWER(co.current_status) LIKE '%return to origin%' THEN 1
                   ELSE 0
                 END
               )
@@ -81,17 +106,18 @@ export async function GET(req: Request) {
         FROM consignments co
         JOIN users u ON u.id = co.client_id
 
-        WHERE co.providers::jsonb @> $1::jsonb
+        WHERE LOWER(co.provider) = $1
 
         GROUP BY u.id, u.company_name, u.username
         ORDER BY u.company_name NULLS LAST, u.id;
       `;
 
-      // run parameterized query — db.$client.query may return either { rows } or an array
-      const rawResult: any = await db.$client.query(sqlQuery, [providerJsonb]);
+      const rawResult: any = await db.$client.query(sqlQuery, [p]);
 
-      // normalize both possible shapes
-      const rows = Array.isArray(rawResult) ? rawResult : (rawResult.rows ?? rawResult);
+      const rows = Array.isArray(rawResult)
+        ? rawResult
+        : rawResult.rows ?? rawResult;
+
       clientStats = rows.map((r: any) => ({
         client_id: Number(r.client_id),
         company_name: r.company_name,
@@ -112,6 +138,9 @@ export async function GET(req: Request) {
     });
   } catch (err: any) {
     console.error("Stats API error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    );
   }
 }

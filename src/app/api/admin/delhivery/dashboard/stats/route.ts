@@ -1,23 +1,26 @@
+// /api/admin/delhivery/dashboard/stats/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
 import { sql } from "drizzle-orm";
 
 /* ------------------------------------------
-   LOCAL FUNCTION → Get Delhivery C2C Stats
+   LOCAL FUNCTION → Get Delhivery Stats
 ------------------------------------------- */
 async function getDelhiveryProviderStats() {
   // TOTAL
   const totalRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments
+    SELECT COUNT(*) AS count
+    FROM consignments
+    WHERE provider = 'delhivery'
   `);
   const total = Number(totalRes.rows[0]?.count || 0);
 
   // DELIVERED
   const deliveredRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments
-    WHERE LOWER(current_status) LIKE '%deliver%'
+    SELECT COUNT(*) AS count
+    FROM consignments
+    WHERE provider = 'delhivery'
+      AND LOWER(current_status) LIKE '%deliver%'
       AND LOWER(current_status) NOT LIKE '%undeliver%'
       AND LOWER(current_status) NOT LIKE '%redeliver%'
   `);
@@ -25,14 +28,19 @@ async function getDelhiveryProviderStats() {
 
   // RTO
   const rtoRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments
-    WHERE LOWER(current_status) LIKE '%rto%'
-       OR LOWER(current_status) LIKE '%return%'
+    SELECT COUNT(*) AS count
+    FROM consignments
+    WHERE provider = 'delhivery'
+      AND (
+        LOWER(current_status) LIKE '%rto%'
+        OR LOWER(current_status) LIKE '%return%'
+        OR LOWER(current_status) LIKE '%returned%'
+        OR LOWER(current_status) LIKE '%return to origin%'
+      )
   `);
   const rto = Number(rtoRes.rows[0]?.count || 0);
 
-  // Pending = total - delivered - rto
+  // Pending
   const pending = total - delivered - rto;
 
   return { total, delivered, pending, rto };

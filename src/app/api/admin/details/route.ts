@@ -3,17 +3,13 @@ import { db } from "@/app/db/postgres";
 import { consignments, trackingEvents, trackingHistory } from "@/app/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
-// ----------------- Helpers -----------------
+/* ----------------- Helpers (UNCHANGED) ----------------- */
 
 function toIsoDateOrNull(v: any): string | null {
   if (!v) return null;
-  // If it's a JS Date object:
   if (v instanceof Date) return v.toISOString();
-  // If it's a string in YYYY-MM-DD or YYYY-MM-DD HH:MM:SS, try normalize
   if (typeof v === "string") {
-    // If timestamp with space -> convert to T for ISO
     if (v.includes(" ")) return new Date(v.replace(" ", "T")).toISOString();
-    // If date-only
     return new Date(v).toISOString();
   }
   return null;
@@ -21,20 +17,17 @@ function toIsoDateOrNull(v: any): string | null {
 
 function parseDateOnlyToISO(v: any): string | null {
   if (!v) return null;
-  if (typeof v === "string") {
-    // Accept YYYY-MM-DD already, or other formats
-    return new Date(v).toISOString().slice(0, 10);
-  }
+  if (typeof v === "string") return new Date(v).toISOString().slice(0, 10);
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return null;
 }
 
 function safeString(v: any) {
-  if (v == null) return "";
-  return String(v);
+  return v == null ? "" : String(v);
 }
 
-// TAT rules by AWB prefix (customize as needed)
+/* ----------------- TAT + Movement (LOGIC UNCHANGED) ----------------- */
+
 const TAT_RULES: Record<string, number> = {
   D: 3,
   M: 5,
@@ -42,18 +35,17 @@ const TAT_RULES: Record<string, number> = {
   I: 10,
 };
 
-// Compute TAT (returns label)
-function computeTAT(bookedOn: string | null, awb: string | undefined) {
+function computeTAT(bookedOn: string | null, awb?: string) {
   if (!bookedOn) return "Unknown";
-
   const prefix = (awb?.charAt(0) ?? "").toUpperCase();
   const allowed = TAT_RULES[prefix] ?? 5;
 
   const bookDate = new Date(bookedOn);
   if (isNaN(bookDate.getTime())) return "Unknown";
 
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const ageDays = Math.floor((Date.now() - bookDate.getTime()) / msPerDay);
+  const ageDays = Math.floor(
+    (Date.now() - bookDate.getTime()) / (24 * 60 * 60 * 1000)
+  );
 
   if (ageDays > allowed + 3) return "Very Critical";
   if (ageDays > allowed) return "Critical";
@@ -61,63 +53,40 @@ function computeTAT(bookedOn: string | null, awb: string | undefined) {
   return "On Time";
 }
 
-// Movement detection using timeline array (precise)
 function computeMovementFromTimeline(timeline: any[]) {
-  if (!Array.isArray(timeline) || timeline.length === 0) return "Unknown";
+  if (!timeline.length) return "Unknown";
 
-  // timeline is chronological (oldest first). Last event is timeline[timeline.length-1]
   const last = timeline[timeline.length - 1];
   const prev = timeline.length > 1 ? timeline[timeline.length - 2] : null;
 
-  // Determine last scan datetime
-  const lastDateStr = last.date; // expected format YYYY-MM-DD or JS Date string
-  const lastTimeStr = last.time; // expected HH:MM:SS
-  const lastDateTime = lastDateStr ? new Date((String(lastDateStr).includes("T") ? lastDateStr : `${lastDateStr}T${String(lastTimeStr ?? "00:00:00")}`)) : null;
+  const lastTime = last.event_time
+    ? new Date(last.event_time)
+    : null;
 
-  const now = Date.now();
-  if (!lastDateTime || isNaN(lastDateTime.getTime())) return "Unknown";
+  if (!lastTime || isNaN(lastTime.getTime())) return "Unknown";
 
-  const hours = Math.floor((now - lastDateTime.getTime()) / (1000 * 60 * 60));
+  const hours =
+    (Date.now() - lastTime.getTime()) / (1000 * 60 * 60);
 
-  // Primary: if previous exists and location unchanged for repeated scans → No Movement
-  const lastLoc = (last.origin || last.destination || "").trim();
-  const prevLoc = prev ? (prev.origin || prev.destination || "").trim() : null;
-
-  if (prev && prevLoc && lastLoc && prevLoc === lastLoc) {
+  if (prev && prev.location && last.location && prev.location === last.location) {
     if (hours >= 72) return "No Movement (72+ hrs)";
     if (hours >= 48) return "No Movement (48 hrs)";
     if (hours >= 24) return "No Movement (24 hrs)";
     return "No Movement";
   }
 
-  // Secondary: even if location changed but scan is stale
   if (hours >= 72) return "Stuck (72+ hrs)";
   if (hours >= 48) return "Slow (48 hrs)";
   if (hours >= 24) return "Slow (24 hrs)";
 
-  // Otherwise moving
   return "On Time";
 }
 
-// Format timeline events for output
-function mapTimelineRow(t: any) {
-  // t.actionDate (date column) may be YYYY-MM-DD string
-  // t.actionTime (time column) is HH:MM:SS
-  return {
-    action: safeString(t.action),
-    date: t.actionDate ? String(t.actionDate) : null,
-    time: t.actionTime ? String(t.actionTime) : null,
-    origin: safeString(t.origin),
-    destination: safeString(t.destination),
-    remarks: safeString(t.remarks),
-  };
-}
+/* ----------------- Route ----------------- */
 
-// ----------------- Route -----------------
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
-
     const awb = searchParams.get("awb");
     const clientId = searchParams.get("clientId");
 
@@ -128,79 +97,81 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 1️⃣ Fetch master consignment
-    const consignmentRows = await db
+    // 1️⃣ Consignment
+    const [c] = await db
       .select()
       .from(consignments)
       .where(eq(consignments.awb, awb))
       .limit(1);
 
-    if (!consignmentRows || consignmentRows.length === 0) {
+    if (!c) {
       return NextResponse.json(
-        { success: false, message: "No consignment found for this AWB" },
+        { success: false, message: "No consignment found" },
         { status: 404 }
       );
     }
 
-    const c = consignmentRows[0];
-
     if (clientId && Number(clientId) !== c.client_id) {
       return NextResponse.json(
-        { success: false, message: "This AWB does not belong to the client" },
+        { success: false, message: "AWB does not belong to client" },
         { status: 403 }
       );
     }
 
-    // 2️⃣ Fetch timeline events (chronological)
+    // 2️⃣ Timeline (FIXED JOIN)
     const timelineRows = await db
       .select()
       .from(trackingEvents)
-      .where(eq(trackingEvents.consignmentId, c.id))
-      .orderBy(asc(trackingEvents.actionDate), asc(trackingEvents.actionTime));
+      .where(eq(trackingEvents.consignment_id, c.id))
+      .orderBy(asc(trackingEvents.event_time));
 
-    // 3️⃣ Fetch status change log (latest first)
+    // 3️⃣ History (FIXED JOIN)
     const historyRows = await db
       .select()
       .from(trackingHistory)
-      .where(eq(trackingHistory.consignmentId, c.id))
-      .orderBy(desc(trackingHistory.changedAt));
+      .where(eq(trackingHistory.consignment_id, c.id))
+      .orderBy(desc(trackingHistory.changed_at));
 
-    // 4️⃣ Build clean structured response
+    // 4️⃣ Summary
     const summary = {
       awb: c.awb,
       origin: c.origin ?? null,
       destination: c.destination ?? null,
-      bookedOn: parseDateOnlyToISO(c.bookedOn) , // YYYY-MM-DD
-      lastUpdatedOn: toIsoDateOrNull(c.lastUpdatedOn), // ISO timestamp
-      currentStatus: c.lastStatus ?? null,
+      bookedOn: parseDateOnlyToISO(c.booked_at),
+      lastUpdatedOn: toIsoDateOrNull(c.last_status_at),
+      currentStatus: c.current_status ?? null,
     };
 
-    // map timeline
-    const cleanTimeline = timelineRows.map(mapTimelineRow);
+    // Timeline mapping (NEW SHAPE → OLD CONSUMER LOGIC)
+    const cleanTimeline = timelineRows.map((t) => ({
+      status: safeString(t.status),
+      event_time: t.event_time,
+      location: safeString(t.location),
+      remarks: safeString(t.remarks),
+    }));
 
-    // currentStatus computed from last timeline event if available
-    const lastEvent = cleanTimeline.length ? cleanTimeline[cleanTimeline.length - 1] : null;
+    const lastEvent = cleanTimeline.at(-1) ?? null;
+
     const currentStatus = {
       status: summary.currentStatus,
-      date: lastEvent?.date ?? summary.bookedOn,
-      time: lastEvent?.time ?? null,
-      location: lastEvent?.origin || lastEvent?.destination || summary.origin,
+      date: lastEvent?.event_time ?? summary.bookedOn,
+      time: null,
+      location: lastEvent?.location ?? summary.origin,
       remarks: lastEvent?.remarks ?? null,
     };
 
-    // TAT & Movement
     const tat = computeTAT(summary.bookedOn, c.awb);
     const movement = computeMovementFromTimeline(cleanTimeline);
 
-    // reports
     const reports = {
-      delivered: (c.lastStatus ?? "").toLowerCase().includes("delivered"),
-      outForDelivery: (c.lastStatus ?? "").toLowerCase().includes("out for delivery"),
-      rto: (c.lastStatus ?? "").toLowerCase().includes("rto"),
+      delivered: (c.current_status ?? "").toLowerCase().includes("deliver"),
+      outForDelivery: (c.current_status ?? "").toLowerCase().includes("out for delivery"),
+      rto: (c.current_status ?? "").toLowerCase().includes("rto"),
       delayed:
-        !!c.lastUpdatedOn &&
-        new Date(c.lastUpdatedOn).getTime() < Date.now() - 3 * 24 * 60 * 60 * 1000,
-      lastScanLocation: lastEvent?.origin ?? summary.origin,
+        !!c.last_status_at &&
+        new Date(c.last_status_at).getTime() <
+          Date.now() - 3 * 24 * 60 * 60 * 1000,
+      lastScanLocation: lastEvent?.location ?? summary.origin,
     };
 
     return NextResponse.json({

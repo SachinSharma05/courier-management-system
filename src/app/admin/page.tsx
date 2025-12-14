@@ -10,28 +10,6 @@ import { Card } from "@/components/ui/card";
 import { providerIcon } from "@/components/admin/provider-icons"; // create below
 
 /* -------------------------
-   Small helper components
-   ------------------------- */
-function Counter({ value = 0, duration = 800 }: { value?: number; duration?: number }) {
-  const [current, setCurrent] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const stepTime = Math.max(10, Math.floor(duration / Math.max(1, value)));
-    const handle = setInterval(() => {
-      start += Math.max(1, Math.round(value / (duration / stepTime)));
-      if (start >= value) {
-        setCurrent(value);
-        clearInterval(handle);
-      } else {
-        setCurrent(start);
-      }
-    }, stepTime);
-    return () => clearInterval(handle);
-  }, [value, duration]);
-  return <span className="text-2xl font-bold">{current.toLocaleString()}</span>;
-}
-
-/* -------------------------
    Page
    ------------------------- */
 const PROVIDERS = [
@@ -112,45 +90,6 @@ export default function PremiumDashboard() {
       <div className="grid grid-cols-12 gap-6">
         {/* LEFT — main content */}
         <div className="col-span-12 space-y-6">
-          {/* KPI Grid */}
-          <div className="grid grid-cols-4 gap-6">
-            {/* REVENUE */}
-            <Card className="p-5 rounded-2xl card-glass">
-              <div className="text-xs text-gray-500">Total Revenue</div>
-              <div className="mt-2 text-3xl font-extrabold title-gradient">
-                ₹<Counter value={stats.billing?.totalRevenue ?? 0} />
-              </div>
-              <div className="text-xs text-gray-400 mt-1">Monthly Revenue Insights</div>
-            </Card>
-
-            {/* RETAIL BOOKINGS */}
-            <Card className="p-5 rounded-2xl card-glass">
-              <div className="text-xs text-gray-500">Retail Bookings</div>
-              <div className="mt-2 text-3xl font-extrabold text-indigo-600">
-                <Counter value={50} />
-              </div>
-              <div className="text-xs text-gray-400 mt-1">Counter Bookings</div>
-            </Card>
-
-            {/* AVERAGE PRICE */}
-            <Card className="p-5 rounded-2xl card-glass">
-              <div className="text-xs text-gray-500">Average Price / Unit</div>
-              <div className="mt-2 text-3xl font-extrabold text-amber-600">
-                ₹<Counter value={42} />
-              </div>
-              <div className="text-xs text-gray-400 mt-1">Estimated</div>
-            </Card>
-
-            {/* OPEN COMPLAINTS */}
-            <Card className="p-5 rounded-2xl card-glass">
-              <div className="text-xs text-gray-500">Open Complaints</div>
-              <div className="mt-2 text-3xl font-extrabold text-red-600">
-                <Counter value={(complaints || []).filter((c:any)=>c.status==='open').length} />
-              </div>
-              <div className="text-xs text-gray-400 mt-1">Action Required</div>
-            </Card>
-          </div>
-
           {/* Provider cards row */}
           <div className="grid grid-cols-4 gap-6 mt-4">
             {PROVIDERS.map((p) => {

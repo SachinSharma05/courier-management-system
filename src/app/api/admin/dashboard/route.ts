@@ -19,7 +19,7 @@ async function getProviderStats(provider: string) {
   const totalRes = await db.execute(sql`
     SELECT COUNT(*) AS count 
     FROM consignments 
-    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
+    WHERE provider = ${provider}
   `);
   const total = Number(totalRes.rows[0].count || 0);
 
@@ -27,43 +27,8 @@ async function getProviderStats(provider: string) {
   const deliveredRes = await db.execute(sql`
     SELECT COUNT(*) AS count 
     FROM consignments 
-    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
-    AND LOWER(last_status) LIKE '%deliver%'
-    AND LOWER(last_status) NOT LIKE '%undeliver%'
-    AND LOWER(last_status) NOT LIKE '%redeliver%'
-  `);
-  const delivered = Number(deliveredRes.rows[0].count || 0);
-
-  // RTO
-  const rtoRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM consignments 
-    WHERE providers::jsonb @> ${sql.raw(`'${jsonLiteral}'`)}::jsonb
-    AND LOWER(last_status) LIKE '%rto%'
-  `);
-  const rto = Number(rtoRes.rows[0].count || 0);
-
-  // PENDING (derived, safest)
-  const pending = total - delivered - rto;
-
-  return { total, delivered, pending, rto };
-}
-
-async function getDelhiveryProviderStats(provider: string) {
-  const jsonLiteral = JSON.stringify([provider]);
-
-  // TOTAL
-  const totalRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments
-  `);
-  const total = Number(totalRes.rows[0].count || 0);
-
-  // DELIVERED
-  const deliveredRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments 
-    WHERE LOWER(current_status) LIKE '%deliver%'
+    WHERE provider = ${provider}
+    AND LOWER(current_status) LIKE '%deliver%'
     AND LOWER(current_status) NOT LIKE '%undeliver%'
     AND LOWER(current_status) NOT LIKE '%redeliver%'
   `);
@@ -72,8 +37,9 @@ async function getDelhiveryProviderStats(provider: string) {
   // RTO
   const rtoRes = await db.execute(sql`
     SELECT COUNT(*) AS count 
-    FROM delhivery_c2c_shipments 
-    WHERE LOWER(current_status) LIKE '%rto%'
+    FROM consignments 
+    WHERE provider = ${provider}
+    AND LOWER(current_status) LIKE '%rto%'
   `);
   const rto = Number(rtoRes.rows[0].count || 0);
 
@@ -130,7 +96,7 @@ export async function GET(req: Request) {
        1) PROVIDER STATISTICS (DTDC, Delhivery, XB, Aramex)
     ------------------------------------------------------------ */
     const dtdc = await getProviderStats("dtdc");
-    const delhivery = await getDelhiveryProviderStats("delhivery");
+    const delhivery = await getProviderStats("delhivery");
     const xpressbees = await getProviderStats("xpressbees");
 
     // Aramex currently unused → return zero
@@ -196,14 +162,14 @@ export async function GET(req: Request) {
     // TREND (BOOKED DATA)
     const trendRows = await db.execute(sql`
       SELECT
-        TO_CHAR(DATE_TRUNC('day', booked_on), 'Mon DD') AS label,
+        TO_CHAR(DATE_TRUNC('day', booked_at), 'Mon DD') AS label,
         COUNT(*)::int AS value,
-        DATE_TRUNC('day', booked_on) AS sort_order
-      FROM consignments
-      WHERE booked_on IS NOT NULL
-      AND booked_on > NOW() - INTERVAL '30 days'
-      GROUP BY label, sort_order
-      ORDER BY sort_order
+        DATE_TRUNC('day', booked_at) AS sort_order
+        FROM consignments
+        WHERE booked_at IS NOT NULL
+        AND booked_at > NOW() - INTERVAL '30 days'
+        GROUP BY label, sort_order
+        ORDER BY sort_order
     `);
 
     const trendData = trendRows.rows ?? [];

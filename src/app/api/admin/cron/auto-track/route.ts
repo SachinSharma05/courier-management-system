@@ -1,9 +1,9 @@
+// /api/cron/track/dtdc/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
 import {
   consignments,
   trackingEvents,
-  trackingHistory,
   clientCredentials,
   users,
 } from "@/app/db/schema";
@@ -13,10 +13,10 @@ import { decrypt } from "@/app/lib/crypto/encryption";
 export const dynamic = "force-dynamic";
 
 const BATCH_SIZE = 30;
-const PROVIDER_ID_DTDC = 1; // adjust if needed
+const PROVIDER = 1;
 
 /* --------------------------------------------
-   LOAD CREDS FOR A CLIENT → SPECIFIC PROVIDER (DTDC)
+   LOAD DTDC CREDS
 -------------------------------------------- */
 async function loadDtdcCredentials(clientId: number) {
   const rows = await db
@@ -25,80 +25,64 @@ async function loadDtdcCredentials(clientId: number) {
     .where(
       and(
         eq(clientCredentials.client_id, clientId),
-        eq(clientCredentials.provider_id, PROVIDER_ID_DTDC)
+        eq(clientCredentials.provider_id, PROVIDER)
       )
     );
 
-  const creds: Record<string, string | undefined> = {};
-
+  const creds: Record<string, string> = {};
   for (const r of rows) {
-    creds[r.env_key] = decrypt(r.encrypted_value) || undefined;
+    creds[r.env_key] = decrypt(r.encrypted_value) || "";
   }
 
   return {
     apiToken: creds["api_token"],
-    customerCode: creds["DTDC_CUSTOMER_CODE"],
   };
 }
 
 /* --------------------------------------------
-   CHUNK UTILITY
+   UTILS
 -------------------------------------------- */
 function chunk<T>(arr: T[], size: number) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size)
+    out.push(arr.slice(i, i + size));
   return out;
 }
 
 /* --------------------------------------------
-   MAIN CRON EXECUTION
+   CRON
 -------------------------------------------- */
 export async function GET() {
   try {
-    /* Step 1: load all "client" accounts */
     const clients = await db
       .select({ id: users.id })
       .from(users)
       .where(eq(users.role, "client"));
 
-    if (!clients.length)
-      return NextResponse.json({ ok: true, message: "No clients found." });
-
     let totalUpdated = 0;
 
-    /* Step 2: process each client individually */
     for (const c of clients) {
       const clientId = Number(c.id);
 
-      // Load credentials
       const creds = await loadDtdcCredentials(clientId);
-      if (!creds.apiToken) {
-        console.log(`Skipping client ${clientId} — No DTDC credentials.`);
-        continue;
-      }
+      if (!creds.apiToken) continue;
 
-      /* Step 3: fetch this client's AWBs needing update */
       const pending = await db.execute(sql`
-        SELECT id, awb, last_status
+        SELECT id, awb, current_status
         FROM consignments
         WHERE client_id = ${clientId}
-        AND LOWER(last_status) NOT LIKE '%deliver%'
-        AND LOWER(last_status) NOT LIKE '%rto%'
-        LIMIT 300;
+          AND provider = ${PROVIDER}
+          AND LOWER(current_status) NOT LIKE '%deliver%'
+          AND LOWER(current_status) NOT LIKE '%rto%'
+        LIMIT 300
       `);
 
       if (!pending.rows.length) continue;
 
-      const awbs = pending.rows;
-      const groups = chunk(awbs, BATCH_SIZE);
+      const groups = chunk(pending.rows, BATCH_SIZE);
 
-      console.log(
-        `Client ${clientId} → tracking ${awbs.length} pending consignments`
-      );
-
-      /* Step 4: Call DTDC batch API for each group */
       for (const group of groups) {
-        const list = group.map((x) => x.awb);
+        const awbs = group.map(r => r.awb);
 
         const res = await fetch(
           "https://blktracksvc.dtdc.com/dtdc-api/rest/JSONCnTrk/getTrackDetails",
@@ -108,66 +92,51 @@ export async function GET() {
               "Content-Type": "application/json",
               "X-Access-Token": creds.apiToken,
             },
-            body: JSON.stringify({ awbs: list }),
+            body: JSON.stringify({ awbs }),
           }
         );
 
-        let body;
-        try {
-          body = await res.json();
-        } catch {
-          console.log("Failed to parse DTDC response for client:", clientId);
-          continue;
-        }
-
+        const body = await res.json();
         if (!body?.data) continue;
 
-        /* Step 5: process each AWB update */
         for (const item of body.data) {
-          const cons = awbs.find((x) => x.awb === item.awb);
+          const cons = group.find(x => x.awb === item.awb);
           if (!cons) continue;
 
           const latest = item.events?.[0];
           if (!latest) continue;
 
-          const oldStatus = cons.last_status || null;
           const newStatus = latest.status;
+          const eventTime = new Date(
+            `${latest.date}T${latest.time || "00:00:00"}`
+          );
 
-          /* --- Update consignment --- */
-            await db
+          // 🔹 update consignment
+          await db
             .update(consignments)
             .set({
-                current_status: newStatus,
-                origin: latest.origin || null,
-                destination: latest.destination || null,
-                last_status_at: new Date(),
-                updated_at: new Date(),
+              current_status: newStatus,
+              origin: latest.origin || null,
+              destination: latest.destination || null,
+              last_status_at: eventTime,
+              updated_at: new Date(),
             })
-            .where(eq(consignments.id, String(cons.id)));   // <-- FIX
+            .where(eq(consignments.id, cons.id));
 
-          /* --- Insert into trackingEvents --- */
-            await db
+          // 🔹 dedup insert event
+          await db
             .insert(trackingEvents)
             .values({
-                consignment_id: String(cons.id),   // <-- FIX
-                action: newStatus,
-                actionDate: latest.date || null,
-                actionTime: latest.time || null,
-                origin: latest.origin || null,
-                destination: latest.destination || null,
-                remarks: latest.remarks || null,
+              consignment_id: cons.id,
+              provider: PROVIDER,
+              awb: cons.awb,
+              status: newStatus,
+              location: latest.origin || null,
+              remarks: latest.remarks || null,
+              event_time: eventTime,
+              raw: latest,
             })
             .onConflictDoNothing();
-
-          /* --- Insert trackingHistory (if changed) --- */
-            if (oldStatus !== newStatus) {
-            await db.insert(trackingHistory).values({
-            consignmentId: cons.id,
-            oldStatus,
-            newStatus,
-            changedAt: new Date(),
-            } as any);
-            }
 
           totalUpdated++;
         }
@@ -177,10 +146,10 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       updated: totalUpdated,
-      message: "Cron auto-tracking completed successfully",
+      provider: PROVIDER,
     });
   } catch (err) {
-    console.error("Cron error:", err);
+    console.error("DTDC cron error:", err);
     return NextResponse.json(
       { ok: false, error: String(err) },
       { status: 500 }

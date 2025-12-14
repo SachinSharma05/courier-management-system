@@ -137,11 +137,11 @@ export async function GET() {
             await db
             .update(consignments)
             .set({
-                lastStatus: newStatus,
+                current_status: newStatus,
                 origin: latest.origin || null,
                 destination: latest.destination || null,
-                lastUpdatedOn: new Date(),
-                updatedAt: new Date(),
+                last_status_at: new Date(),
+                updated_at: new Date(),
             })
             .where(eq(consignments.id, String(cons.id)));   // <-- FIX
 
@@ -149,7 +149,7 @@ export async function GET() {
             await db
             .insert(trackingEvents)
             .values({
-                consignmentId: String(cons.id),   // <-- FIX
+                consignment_id: String(cons.id),   // <-- FIX
                 action: newStatus,
                 actionDate: latest.date || null,
                 actionTime: latest.time || null,

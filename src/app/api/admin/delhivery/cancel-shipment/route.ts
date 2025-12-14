@@ -1,50 +1,76 @@
 import { NextResponse } from "next/server";
-import { dlvC2C } from "@/app/lib/delhivery/delhivery.c2c";
 import { db } from "@/app/db/postgres";
-import { delhiveryC2CShipments } from "@/app/db/schema";
-import { eq } from "drizzle-orm";
+import { consignments, providerShipments } from "@/app/db/schema";
+import { eq, and } from "drizzle-orm";
+import { dlvC2C } from "@/app/lib/delhivery/delhivery.c2c";
 
 export async function POST(req: Request) {
   try {
     const { awb } = await req.json();
 
     if (!awb) {
-      return NextResponse.json({ success: false, error: "AWB required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "AWB required" },
+        { status: 400 }
+      );
     }
 
-    // Payload expected by Delhivery
-    const payload = {
+    // 1️⃣ Find consignment
+    const cons = await db
+      .select()
+      .from(consignments)
+      .where(
+        and(
+          eq(consignments.awb, awb),
+          eq(consignments.provider, "delhivery")
+        )
+      )
+      .limit(1);
+
+    if (!cons.length) {
+      return NextResponse.json(
+        { success: false, error: "Shipment not found" },
+        { status: 404 }
+      );
+    }
+
+    const c = cons[0];
+
+    // 2️⃣ Call Delhivery cancel API
+    const resp = await dlvC2C.cancelShipment({
       waybill: awb,
-      cancellation: "true"
-    };
-
-    const result = await dlvC2C.cancelShipment(payload);
-
-    const success =
-      typeof result === "string"
-        ? result.includes("<status>True</status>")
-        : result?.status === "Success" || result?.success;
-
-    // Update DB
-    if (success) {
-      await db
-        .update(delhiveryC2CShipments)
-        .set({
-          current_status: "Cancelled",
-          updated_at: new Date(),
-          raw_response: result
-        })
-        .where(eq(delhiveryC2CShipments.awb, awb));
-    }
-
-    return NextResponse.json({
-      success,
-      result
+      cancellation: true,
     });
+
+    // 3️⃣ Update master consignment
+    await db
+      .update(consignments)
+      .set({
+        current_status: "Cancelled",
+        last_status_at: new Date(),
+        updated_at: new Date(),
+      })
+      .where(eq(consignments.id, c.id));
+
+    // 4️⃣ Update provider shipment raw
+    await db
+      .update(providerShipments)
+      .set({
+        raw_response: resp,
+        last_synced_at: new Date(),
+      })
+      .where(
+        and(
+          eq(providerShipments.consignment_id, c.id),
+          eq(providerShipments.provider, "delhivery")
+        )
+      );
+
+    return NextResponse.json({ success: true, raw: resp });
   } catch (err: any) {
-    console.error("Cancel shipment failed:", err);
+    console.error("Delhivery cancel error:", err);
     return NextResponse.json(
-      { success: false, error: err?.message ?? err },
+      { success: false, error: err.message },
       { status: 500 }
     );
   }

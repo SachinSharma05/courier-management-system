@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     for (const awb of awbs) {
       try {
         const live = await delhiveryC2C("/api/v1/packages/json/", { waybill: awb });
-        await upsertDelhiveryTracking(awb, live);
+        await upsertDelhiveryTracking(awb, live, 1);
 
         results.push({ awb, success: true });
       } catch (err: any) {

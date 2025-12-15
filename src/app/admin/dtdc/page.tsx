@@ -1,138 +1,226 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+
+type CPDP = {
+  client_id: number;
+  company_name: string;
+  total: number;
+  delivered: number;
+  pending: number;
+  rto: number;
+};
+
+const SORT_OPTIONS = [
+  { key: "total", label: "Total" },
+  { key: "delivered", label: "Delivered" },
+  { key: "pending", label: "Pending" },
+  { key: "rto", label: "RTO" },
+];
 
 export default function DtdcDashboard() {
   const [stats, setStats] = useState<any>(null);
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<keyof CPDP>("total");
+  const [favorites, setFavorites] = useState<number[]>([]);
 
+  /* -------------------------
+     Load dashboard stats
+  ------------------------- */
   useEffect(() => {
-    fetch("/api/dashboard/stats?provider=dtdc")
+    fetch("/api/admin/dtdc/dashboard/stats?provider=dtdc")
       .then((r) => r.json())
       .then((data) => setStats(data));
+
+    const saved = localStorage.getItem("dtdc_favorites");
+    if (saved) setFavorites(JSON.parse(saved));
   }, []);
+
+  /* -------------------------
+     Persist favorites
+  ------------------------- */
+  useEffect(() => {
+    localStorage.setItem("dtdc_favorites", JSON.stringify(favorites));
+  }, [favorites]);
 
   if (!stats) return <div className="p-8">Loading…</div>;
 
+  /* -------------------------
+     Filter + Sort CPDPs
+  ------------------------- */
+  const cpdpList: CPDP[] = useMemo(() => {
+    if (!stats.clients) return [];
+
+    const filtered = stats.clients.filter((c: CPDP) =>
+      c.company_name.toLowerCase().includes(query.toLowerCase())
+    );
+
+    const sorted = [...filtered].sort(
+      (a, b) => (b[sortKey] || 0) - (a[sortKey] || 0)
+    );
+
+    // pinned on top
+    return sorted.sort((a, b) => {
+      const aFav = favorites.includes(a.client_id);
+      const bFav = favorites.includes(b.client_id);
+      return aFav === bFav ? 0 : aFav ? -1 : 1;
+    });
+  }, [stats.clients, query, sortKey, favorites]);
+
+  /* -------------------------
+     Export CSV
+  ------------------------- */
+  function exportCSV() {
+    const rows = [
+      ["Company", "Total", "Delivered", "Pending", "RTO"],
+      ...cpdpList.map((c) => [
+        c.company_name,
+        c.total,
+        c.delivered,
+        c.pending,
+        c.rto,
+      ]),
+    ];
+
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dtdc_cpdp_stats.csv";
+    a.click();
+  }
+
+  /* -------------------------
+     Toggle Favorite
+  ------------------------- */
+  function toggleFav(id: number) {
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
   return (
-    <div className="p-8 space-y-6">
-      <h1 className="text-2xl font-semibold">DTDC Dashboard</h1>
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-        {/* Total */}
-        <Link href={`/admin/providerTrack/dtdc?status=all`}>
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-blue-500"></span>
-                Total Shipments
-              </span>
-              <span className="text-xl font-bold">{stats.total}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Delivered */}
-        <Link href={`/admin/providerTrack/dtdc?status=delivered`}>
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-green-500"></span>
-                Delivered
-              </span>
-              <span className="text-xl font-bold">{stats.delivered}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Pending */}
-        <Link href={`/admin/providerTrack/dtdc?status=pending`}>
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-yellow-500"></span>
-                Pending
-              </span>
-              <span className="text-xl font-bold">{stats.pending}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* RTO */}
-        <Link href="{`/admin/providerTrack/dtdc?status=rto`}">
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-red-500"></span>
-                RTO
-              </span>
-              <span className="text-xl font-bold">{stats.rto}</span>
-            </div>
-          </div>
-        </Link>
-
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">DTDC Dashboard</h1>
       </div>
 
-      {/* CLIENT-WISE STATS — Only for DTDC */}
-      {stats.clients && stats.clients.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-4">DTDC - CPDP Stats</h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {stats.clients.map((c: any) => (
-              <div
-                key={c.id}
-                className="border rounded-xl p-5 bg-white shadow hover:shadow-lg hover:-translate-y-1 transition cursor-pointer"
-              >
-                <h3 className="text-lg font-semibold mb-3">{c.company_name}</h3>
-
-                <div className="space-y-3">
-                  <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
-                    <div className="flex justify-between p-3 rounded-lg bg-blue-50 hover:bg-blue-100">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 bg-blue-600 rounded-full"></span>
-                        Total
-                      </span>
-                      <span className="font-bold">{c.total}</span>
-                    </div>
-                  </Link>
-
-                  <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=delivered`}>
-                    <div className="flex justify-between p-3 rounded-lg bg-green-50 hover:bg-green-100">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 bg-green-600 rounded-full"></span>
-                        Delivered
-                      </span>
-                      <span className="font-bold">{c.delivered}</span>
-                    </div>
-                  </Link>
-
-                  <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=pending`}>
-                    <div className="flex justify-between p-3 rounded-lg bg-yellow-50 hover:bg-yellow-100">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 bg-yellow-600 rounded-full"></span>
-                        Pending
-                      </span>
-                      <span className="font-bold">{c.pending}</span>
-                    </div>
-                  </Link>
-
-                  <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=rto`}>
-                    <div className="flex justify-between p-3 rounded-lg bg-red-50 hover:bg-red-100">
-                      <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 bg-red-600 rounded-full"></span>
-                        RTO
-                      </span>
-                      <span className="font-bold">{c.rto}</span>
-                    </div>
-                  </Link>
-                </div>
+      {/* SUMMARY */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          ["Total Shipments", stats.total, "all", "blue"],
+          ["Delivered", stats.delivered, "delivered", "green"],
+          ["Pending", stats.pending, "pending", "yellow"],
+          ["RTO", stats.rto, "rto", "red"],
+        ].map(([label, value, status, color]: any) => (
+          <Link key={label} href={`/admin/providerTrack/dtdc?status=${status}`}>
+            <div className="bg-white border rounded-xl p-4 hover:shadow">
+              <div className="text-xs text-gray-500">{label}</div>
+              <div className={`text-2xl font-bold text-${color}-600`}>
+                {value}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* QUICK ACTIONS */}
+      <div className="flex flex-wrap gap-3 bg-white border rounded-xl p-4">
+        <Link href="/admin/dtdc/create"><Button>Create Shipment</Button></Link>
+        <Link href="/admin/dtdc/bulk-upload"><Button variant="secondary">Bulk Upload</Button></Link>
+        <Link href="/admin/dtdc/track"><Button variant="outline">Track</Button></Link>
+        <Link href="/admin/dtdc/bulk-track"><Button variant="outline">Bulk Track</Button></Link>
+        <Link href="/admin/dtdc/labels"><Button variant="outline">Print Label</Button></Link>
+        <Link href="/admin/dtdc/cancel"><Button variant="destructive">Cancel</Button></Link>
+      </div>
+
+      {/* CONTROLS */}
+      <div className="flex flex-wrap gap-3 items-center bg-white border rounded-xl p-4">
+        <input
+          placeholder="Search CPDP…"
+          className="border rounded px-3 py-2 text-sm w-60"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+
+        <select
+          className="border rounded px-3 py-2 text-sm"
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as any)}
+        >
+          {SORT_OPTIONS.map((s) => (
+            <option key={s.key} value={s.key}>
+              Sort by {s.label}
+            </option>
+          ))}
+        </select>
+
+        <Button variant="outline" onClick={exportCSV}>
+          Export CSV
+        </Button>
+      </div>
+
+      {/* CPDP LIST */}
+      <div className="space-y-3">
+        {cpdpList.map((c) => (
+          <details key={c.client_id} className="bg-white border rounded-xl">
+            <summary className="cursor-pointer px-5 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleFav(c.client_id);
+                  }}
+                  className="text-lg"
+                >
+                  {favorites.includes(c.client_id) ? "⭐" : "☆"}
+                </button>
+                <span className="font-semibold">{c.company_name}</span>
+              </div>
+
+              <div className="flex gap-4 text-sm">
+                <span className="text-blue-600">{c.total}</span>
+                <span className="text-green-600">{c.delivered}</span>
+                <span className="text-yellow-600">{c.pending}</span>
+                <span className="text-red-600">{c.rto}</span>
+              </div>
+            </summary>
+
+            <div className="border-t p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
+                <Tile label="Total" value={c.total} color="blue" />
+              </Link>
+              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=delivered`}>
+                <Tile label="Delivered" value={c.delivered} color="green" />
+              </Link>
+              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=pending`}>
+                <Tile label="Pending" value={c.pending} color="yellow" />
+              </Link>
+              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=rto`}>
+                <Tile label="RTO" value={c.rto} color="red" />
+              </Link>
+            </div>
+          </details>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------
+   Small helper
+------------------------- */
+function Tile({ label, value, color }: any) {
+  return (
+    <div className={`rounded-lg p-3 bg-${color}-50 hover:bg-${color}-100`}>
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className={`font-bold text-${color}-700`}>{value}</div>
     </div>
   );
 }

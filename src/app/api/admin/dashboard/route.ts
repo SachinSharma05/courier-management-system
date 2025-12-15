@@ -1,64 +1,21 @@
 // app/api/admin/dashboard/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { users, consignments, complaints } from "@/app/db/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { consignments, complaints } from "@/app/db/schema";
+import { sql } from "drizzle-orm";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const revalidate = 120;
 
 /* ================================================================
-   HELPER: FETCH PROVIDER STATISTICS
-   - Counts total consignments for a provider
-   - Separates Delivered, Pending, RTO
-================================================================ */
-async function getProviderStats(provider: string) {
-  const jsonLiteral = JSON.stringify([provider]);
-
-  // TOTAL
-  const totalRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM consignments 
-    WHERE provider = ${provider}
-  `);
-  const total = Number(totalRes.rows[0].count || 0);
-
-  // DELIVERED
-  const deliveredRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM consignments 
-    WHERE provider = ${provider}
-    AND LOWER(current_status) LIKE '%deliver%'
-    AND LOWER(current_status) NOT LIKE '%undeliver%'
-    AND LOWER(current_status) NOT LIKE '%redeliver%'
-  `);
-  const delivered = Number(deliveredRes.rows[0].count || 0);
-
-  // RTO
-  const rtoRes = await db.execute(sql`
-    SELECT COUNT(*) AS count 
-    FROM consignments 
-    WHERE provider = ${provider}
-    AND LOWER(current_status) LIKE '%rto%'
-  `);
-  const rto = Number(rtoRes.rows[0].count || 0);
-
-  // PENDING (derived, safest)
-  const pending = total - delivered - rto;
-
-  return { total, delivered, pending, rto };
-}
-
-/* ================================================================
-   HELPER: GET TREND PERIOD CONFIGURATION
-   filter = "daily" | "weekly" | "monthly"
+   HELPER: TREND CONFIG
 ================================================================ */
 function getTrendConfig(filter: string) {
   if (filter === "daily") {
     return {
       interval: "1 day",
       truncate: "hour",
-      label: "TO_CHAR(DATE_TRUNC('hour', created_at), 'HH24:MI')"
+      label: "TO_CHAR(DATE_TRUNC('hour', booked_at), 'HH24:MI')",
     };
   }
 
@@ -66,51 +23,82 @@ function getTrendConfig(filter: string) {
     return {
       interval: "7 days",
       truncate: "day",
-      label: "TO_CHAR(DATE_TRUNC('day', created_at), 'Mon DD')"
+      label: "TO_CHAR(DATE_TRUNC('day', booked_at), 'Mon DD')",
     };
   }
 
-  // default: monthly
   return {
     interval: "30 days",
     truncate: "day",
-    label: "TO_CHAR(DATE_TRUNC('day', created_at), 'Mon DD')"
+    label: "TO_CHAR(DATE_TRUNC('day', booked_at), 'Mon DD')",
   };
 }
 
 /* ================================================================
-   MAIN DASHBOARD HANDLER
-   Returns:
-   - provider stats
-   - clients list
-   - complaints list
-   - pie chart summary
-   - trend chart data
+   MAIN DASHBOARD API
 ================================================================ */
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const filter = url.searchParams.get("filter") ?? "monthly";
+    const providerFilter = url.searchParams.get("provider") ?? "all";
 
     /* ------------------------------------------------------------
-       1) PROVIDER STATISTICS (DTDC, Delhivery, XB, Aramex)
+       1️⃣ PROVIDER STATS (single optimized query)
     ------------------------------------------------------------ */
-    const dtdc = await getProviderStats("dtdc");
-    const delhivery = await getProviderStats("delhivery");
-    const xpressbees = await getProviderStats("xpressbees");
+    const statsRows = await db.execute(sql`
+      SELECT
+        provider,
 
-    // Aramex currently unused → return zero
-    const aramax = { total: 0, delivered: 0, pending: 0, rto: 0 };
+        COUNT(*)::int AS total,
 
-    const providerStats = {
-      dtdc,
-      delhivery,
-      xpressbees,
-      aramax,
+        COUNT(*) FILTER (
+          WHERE
+            LOWER(current_status) LIKE '%deliver%'
+            AND LOWER(current_status) NOT LIKE '%rto%'
+            AND LOWER(current_status) NOT LIKE '%undeliver%'
+            AND LOWER(current_status) NOT LIKE '%redeliver%'
+        )::int AS delivered,
+
+        COUNT(*) FILTER (
+          WHERE LOWER(current_status) LIKE '%rto%'
+        )::int AS rto,
+
+        COUNT(*) FILTER (
+          WHERE
+            LOWER(current_status) NOT LIKE '%deliver%'
+            AND LOWER(current_status) NOT LIKE '%rto%'
+        )::int AS pending
+
+      FROM consignments
+      GROUP BY provider
+    `);
+
+    const providers = {
+      dtdc: { total: 0, delivered: 0, pending: 0, rto: 0 },
+      delhivery: { total: 0, delivered: 0, pending: 0, rto: 0 },
+      xpressbees: { total: 0, delivered: 0, pending: 0, rto: 0 },
+      maruti: { total: 0, delivered: 0, pending: 0, rto: 0 },
     };
 
+    for (const r of statsRows.rows) {
+      const total = r.total;
+      const delivered = r.delivered;
+      const rto = r.rto;
+      const pending = r.pending;
+
+      if (providers[r.provider as keyof typeof providers]) {
+        providers[r.provider as keyof typeof providers] = {
+          total,
+          delivered,
+          pending,
+          rto,
+        };
+      }
+    }
+
     /* ------------------------------------------------------------
-       3) COMPLAINTS LIST (scrollable section)
+       2️⃣ COMPLAINTS (latest first, capped)
     ------------------------------------------------------------ */
     const dbComplaints = await db
       .select({
@@ -121,78 +109,65 @@ export async function GET(req: Request) {
         updated_at: complaints.updated_at,
       })
       .from(complaints)
-      .orderBy(complaints.updated_at);
+      .orderBy(sql`${complaints.updated_at} DESC`)
+      .limit(50);
 
     /* ------------------------------------------------------------
-       4) PIE CHART BREAKDOWN (combined status of all providers)
-       delivered = sum of all provider delivered
-       pending   = sum of all provider pending
-       rto       = sum of all provider rto
+       3️⃣ PIE CHART (derived, unchanged logic)
     ------------------------------------------------------------ */
-    const pieChart = {
+    const pie = {
       delivered:
-        dtdc.delivered +
-        delhivery.delivered +
-        xpressbees.delivered +
-        aramax.delivered,
+        providers.dtdc.delivered +
+        providers.delhivery.delivered +
+        providers.xpressbees.delivered +
+        providers.maruti.delivered,
 
       pending:
-        dtdc.pending +
-        delhivery.pending +
-        xpressbees.pending +
-        aramax.pending,
+        providers.dtdc.pending +
+        providers.delhivery.pending +
+        providers.xpressbees.pending +
+        providers.maruti.pending,
 
       rto:
-        dtdc.rto +
-        delhivery.rto +
-        xpressbees.rto +
-        aramax.rto,
+        providers.dtdc.rto +
+        providers.delhivery.rto +
+        providers.xpressbees.rto +
+        providers.maruti.rto,
     };
 
     /* ------------------------------------------------------------
-       5) TREND CHART DATA (daily/weekly/monthly)
-       Returns:
-       [
-         { label: "01 May", value: 55 },
-         { label: "02 May", value: 78 }
-       ]
+       4️⃣ TREND DATA (provider + period aware)
     ------------------------------------------------------------ */
     const cfg = getTrendConfig(filter);
 
-    // TREND (BOOKED DATA)
+    const providerCondition =
+      providerFilter === "all"
+        ? sql`1=1`
+        : sql`provider = ${providerFilter}`;
+
     const trendRows = await db.execute(sql`
       SELECT
-        TO_CHAR(DATE_TRUNC('day', booked_at), 'Mon DD') AS label,
+        ${sql.raw(cfg.label)} AS label,
         COUNT(*)::int AS value,
-        DATE_TRUNC('day', booked_at) AS sort_order
-        FROM consignments
-        WHERE booked_at IS NOT NULL
-        AND booked_at > NOW() - INTERVAL '30 days'
-        GROUP BY label, sort_order
-        ORDER BY sort_order
+        MIN(booked_at) AS sort_order
+      FROM consignments
+      WHERE booked_at IS NOT NULL
+        AND booked_at >= NOW() - INTERVAL '${sql.raw(cfg.interval)}'
+        AND ${providerCondition}
+      GROUP BY label
+      ORDER BY sort_order
     `);
 
-    const trendData = trendRows.rows ?? [];
-
     /* ------------------------------------------------------------
-       FINAL RESPONSE OBJECT
+       FINAL RESPONSE
     ------------------------------------------------------------ */
     return NextResponse.json({
       ok: true,
-
-      // Provider boxes
-      providers: providerStats,
-
-      // Complaints scroll list
+      providers,
       complaints: dbComplaints,
-
-      // Pie chart stats
-      pie: pieChart,
-
-      // Trend line chart
-      trend: trendData,
+      pie,
+      trend: trendRows.rows ?? [],
     });
-
   } catch (error: any) {
     console.error("DASHBOARD API ERROR:", error);
     return NextResponse.json(

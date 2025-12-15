@@ -8,16 +8,11 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { providerIcon } from "@/components/admin/provider-icons"; // create below
+import { PROVIDER_META } from "@/components/admin/provider-meta";
 
 /* -------------------------
    Page
    ------------------------- */
-const PROVIDERS = [
-  { key: "dtdc", name: "DTDC", href: "/admin/dtdc" },
-  { key: "delhivery", name: "Delhivery", href: "/admin/delhivery" },
-  { key: "xb", name: "XpressBees", href: "/admin/xpressbees" },
-  { key: "maruti", name: "Maruti", href: "/admin/maruti" },
-];
 
 const COLORS = {
   delivered: "#10b981",
@@ -32,18 +27,28 @@ export default function PremiumDashboard() {
   const [pie, setPie] = useState<any>({ delivered: 0, pending: 0, rto: 0 });
   const [trend, setTrend] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
+
+  const [providerFilter, setProviderFilter] = useState("all");
+  const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("monthly");
 
   async function fetchDashboard() {
     setLoading(true);
     try {
-      // use client revalidate hint so Vercel/Next caching can help
-      const res = await fetch("/api/admin/dashboard", { next: { revalidate: 60 } });
+      const qs = new URLSearchParams({
+        filter: period,
+        provider: providerFilter,
+      });
+
+      const res = await fetch(`/api/admin/dashboard?${qs.toString()}`, {
+        next: { revalidate: 60 },
+      });
+
       const json = await res.json();
       if (!json.ok) {
         toast.error("Failed to load dashboard");
         return;
       }
+
       setStats(json.providers ?? {});
       setComplaints(json.complaints ?? []);
       setPie(json.pie ?? { delivered: 0, pending: 0, rto: 0 });
@@ -56,18 +61,25 @@ export default function PremiumDashboard() {
     }
   }
 
-  useEffect(() => { fetchDashboard(); }, []);
+  useEffect(() => {
+  fetchDashboard();
+}, [providerFilter, period]);
 
   // combined pie data
   const combined = useMemo(() => {
-    return ["delivered", "pending", "rto"].map((k) => ({
-      name: k,
-      value:
-        (stats.dtdc?.[k] || 0) +
-        (stats.delh?.[k] || 0) +
-        (stats.xb?.[k] || 0) +
-        (stats.aramax?.[k] || 0),
-    }));
+  const base = { delivered: 0, pending: 0, rto: 0 };
+
+  Object.values(stats).forEach((p: any) => {
+    base.delivered += p?.delivered || 0;
+    base.pending += p?.pending || 0;
+    base.rto += p?.rto || 0;
+  });
+
+  return [
+    { name: "delivered", value: base.delivered },
+    { name: "pending", value: base.pending },
+    { name: "rto", value: base.rto },
+  ];
   }, [stats]);
 
   return (
@@ -91,53 +103,54 @@ export default function PremiumDashboard() {
         {/* LEFT — main content */}
         <div className="col-span-12 space-y-6">
           {/* Provider cards row */}
-          <div className="grid grid-cols-4 gap-6 mt-4">
-            {PROVIDERS.map((p) => {
-              const d = stats[p.key] ?? { delivered:0, pending:0, rto:0, total:0 };
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+            {Object.entries(stats).map(([key, data]: any) => {
+              // skip providers not configured in UI meta
+              const meta = PROVIDER_META[key];
+              if (!meta) return null;
 
-              const gradient =
-                p.key === "dtdc"
-                  ? "from-blue-500 to-blue-700"
-                  : p.key === "delhivery"
-                  ? "from-orange-500 to-red-500"
-                  : p.key === "xb"
-                  ? "from-yellow-400 to-orange-400"
-                  : "from-purple-500 to-indigo-500";
+              const d = data ?? { total: 0, delivered: 0, pending: 0, rto: 0 };
 
               return (
-                <Link key={p.key} href={p.href}>
-                  <div className={`p-5 rounded-2xl shadow-sm hover:shadow-xl transition cursor-pointer bg-white`}>
-                    
+                <Link key={key} href={meta.href}>
+                  <div className="p-5 rounded-2xl shadow-sm hover:shadow-xl transition bg-white cursor-pointer">
+
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg bg-gradient-to-br ${gradient} text-white text-xl`}>
-                          {providerIcon(p.key)}
+                        <div className={`p-2 rounded-lg bg-gradient-to-br ${meta.gradient} text-white text-xl`}>
+                          {providerIcon(key)}
                         </div>
+
                         <div>
-                          <div className="font-bold text-lg">{p.name}</div>
+                          <div className="font-bold text-lg">{meta.name}</div>
                           <div className="text-xs text-gray-500">Total: {d.total}</div>
                         </div>
                       </div>
 
                       <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700">
-                        Live
+                        Active
                       </span>
                     </div>
 
-                    {/* Stats Pills */}
+                    {/* Stats */}
                     <div className="grid grid-cols-3 gap-3 text-center">
                       <div className="py-2 rounded-lg bg-green-50 text-green-700 font-semibold text-sm">
-                        {d.delivered}<div className="text-xs font-normal">Delivered</div>
+                        {d.delivered}
+                        <div className="text-xs font-normal">Delivered</div>
                       </div>
+
                       <div className="py-2 rounded-lg bg-yellow-50 text-yellow-700 font-semibold text-sm">
-                        {d.pending}<div className="text-xs font-normal">Pending</div>
+                        {d.pending}
+                        <div className="text-xs font-normal">Pending</div>
                       </div>
+
                       <div className="py-2 rounded-lg bg-red-50 text-red-700 font-semibold text-sm">
-                        {d.rto}<div className="text-xs font-normal">RTO</div>
+                        {d.rto}
+                        <div className="text-xs font-normal">RTO</div>
                       </div>
                     </div>
-                    
+
                   </div>
                 </Link>
               );
@@ -149,7 +162,37 @@ export default function PremiumDashboard() {
             <div className="col-span-8">
               {/* Trend chart (colored bars) */}
               <Card className="p-4 rounded-xl flex flex-col items-center">
-                <h3 className="text-lg font-semibold mb-2">Trend: Bookings (by time window)</h3>
+                <div className="flex items-center justify-between w-full mb-3">
+                  <h3 className="text-lg font-semibold">Trend: Bookings</h3>
+
+                  <div className="flex gap-2">
+                    {/* Provider Dropdown */}
+                    <select
+                      value={providerFilter}
+                      onChange={(e) => setProviderFilter(e.target.value)}
+                      className="border rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="all">All Providers</option>
+                      {Object.keys(stats).map((p) => (
+                        <option key={p} value={p}>
+                          {PROVIDER_META[p]?.name ?? p}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Period Dropdown */}
+                    <select
+                      value={period}
+                      onChange={(e) => setPeriod(e.target.value as any)}
+                      className="border rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="w-full h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={trend.map((t:any)=>({ label: t.label, value: t.value }))} margin={{ left: 0 }}>

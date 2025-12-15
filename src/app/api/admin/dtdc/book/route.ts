@@ -84,8 +84,11 @@ export async function POST(req: Request) {
 
         service_type: payload?.service_type ?? null,
         payment_mode: payload?.payment_mode ?? null,
+        // ✅ FIX: numeric → string
         cod_amount:
-          payload?.payment_mode === "cod" ? Number(payload?.cod_amount ?? 0) : 0,
+          payload?.payment_mode === "cod"
+            ? String(payload?.cod_amount ?? "0")
+            : "0",
 
         origin: payload?.origin_city ?? null,
         destination: payload?.destination_city ?? null,

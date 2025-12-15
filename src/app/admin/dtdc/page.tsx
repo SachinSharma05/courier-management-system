@@ -24,7 +24,16 @@ export default function DtdcDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<keyof CPDP>("total");
-  const [favorites, setFavorites] = useState<number[]>([]);
+  
+  const [favorites, setFavorites] = useState<number[]>(() => {
+  if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("dtdc_favorites");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   /* -------------------------
      Load dashboard stats
@@ -33,9 +42,6 @@ export default function DtdcDashboard() {
     fetch("/api/admin/dtdc/dashboard/stats?provider=dtdc")
       .then((r) => r.json())
       .then((data) => setStats(data));
-
-    const saved = localStorage.getItem("dtdc_favorites");
-    if (saved) setFavorites(JSON.parse(saved));
   }, []);
 
   /* -------------------------
@@ -45,29 +51,33 @@ export default function DtdcDashboard() {
     localStorage.setItem("dtdc_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  if (!stats) return <div className="p-8">Loading…</div>;
+  if (!stats) {
+    return <div className="p-8">Loading…</div>;
+  }
 
   /* -------------------------
      Filter + Sort CPDPs
   ------------------------- */
   const cpdpList: CPDP[] = useMemo(() => {
-    if (!stats.clients) return [];
+    if (!stats?.clients) return [];
 
+    // 1️⃣ search
     const filtered = stats.clients.filter((c: CPDP) =>
       c.company_name.toLowerCase().includes(query.toLowerCase())
     );
 
+    // 2️⃣ sort by key
     const sorted = [...filtered].sort(
-      (a, b) => (b[sortKey] || 0) - (a[sortKey] || 0)
+      (a, b) => (Number(b[sortKey]) || 0) - (Number(a[sortKey]) || 0)
     );
 
-    // pinned on top
+    // 3️⃣ pin favorites on top
     return sorted.sort((a, b) => {
       const aFav = favorites.includes(a.client_id);
       const bFav = favorites.includes(b.client_id);
       return aFav === bFav ? 0 : aFav ? -1 : 1;
     });
-  }, [stats.clients, query, sortKey, favorites]);
+  }, [stats, query, sortKey, favorites]);
 
   /* -------------------------
      Export CSV

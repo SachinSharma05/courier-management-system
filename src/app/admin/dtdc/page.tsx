@@ -45,17 +45,6 @@ export default function DtdcDashboard() {
   }, []);
 
   /* -------------------------
-     Persist favorites
-  ------------------------- */
-  useEffect(() => {
-    localStorage.setItem("dtdc_favorites", JSON.stringify(favorites));
-  }, [favorites]);
-
-  if (!stats) {
-    return <div className="p-8">Loading…</div>;
-  }
-
-  /* -------------------------
      Filter + Sort CPDPs
   ------------------------- */
   const cpdpList: CPDP[] = useMemo(() => {
@@ -78,6 +67,17 @@ export default function DtdcDashboard() {
       return aFav === bFav ? 0 : aFav ? -1 : 1;
     });
   }, [stats, query, sortKey, favorites]);
+
+  /* -------------------------
+     Persist favorites
+  ------------------------- */
+  useEffect(() => {
+    localStorage.setItem("dtdc_favorites", JSON.stringify(favorites));
+  }, [favorites]);
+
+  if (!stats) {
+    return <div className="p-8">Loading…</div>;
+  }
 
   /* -------------------------
      Export CSV

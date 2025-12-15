@@ -12,9 +12,9 @@ export async function GET(req: Request) {
 
   try {
     const res = await marutiDownloadLabel(awb, cAwb);
-    const data = await res.arrayBuffer();
-
-    return new NextResponse(data, {
+    const buffer = await res.arrayBuffer();
+    
+    return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename=maruti_${awb}.pdf`,

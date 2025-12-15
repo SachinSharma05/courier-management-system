@@ -64,22 +64,13 @@ export async function marutiCreateOrder(payload: any) {
 /* ----------------------------------------
    LABEL
 ----------------------------------------- */
-export async function marutiDownloadLabel(
-  awbNumber: string,
-  cAwbNumber: string
-) {
-  const url = new URL(
-    `${BASE_URL}/fulfillment/public/seller/order/download/label-invoice`
+export async function marutiDownloadLabel(awb: string, cAwb: string) {
+  const headers = await authHeaders();
+
+  return fetch(
+    `${BASE_URL}/fulfillment/public/seller/order/download/label-invoice?awbNumber=${awb}&cAwbNumber=${cAwb}`,
+    { headers }
   );
-
-  url.searchParams.set("awbNumber", awbNumber);
-  url.searchParams.set("cAwbNumber", cAwbNumber);
-
-  const res = await fetch(url.toString(), {
-    headers: await authHeaders(),
-  });
-
-  return res.arrayBuffer(); // usually PDF
 }
 
 /* ----------------------------------------

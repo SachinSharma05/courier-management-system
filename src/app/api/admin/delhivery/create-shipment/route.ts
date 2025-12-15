@@ -80,10 +80,8 @@ export async function POST(req: Request) {
     // -----------------------------
     if (awb) {
     // 1️⃣ Insert master consignment
-    const [consignment] = await db
-      .insert(consignments)
-      .values({
-        client_id: 1, // ✅ STRING
+    const [consignment] = await db.insert(consignments).values({
+        client_id: 1, // ✅ correct
         provider: "delhivery",
         awb,
 
@@ -91,16 +89,20 @@ export async function POST(req: Request) {
 
         service_type: form.service_type ?? null,
         payment_mode: form.payment_mode ?? null,
+
+        // 🔑 FIX HERE
         cod_amount:
           form.payment_mode === "cod"
-            ? Number(form.cod_amount || 0)
-            : 0,
+            ? String(Number(form.cod_amount || 0))
+            : "0",
 
         origin: "VARIABLEINSTINCT C2C",
         destination: form.customer_city ?? null,
 
         origin_pincode: null,
-        destination_pincode: String(form.customer_pincode), // ✅ STRING
+        destination_pincode: form.customer_pincode
+          ? String(form.customer_pincode)
+          : null,
 
         length_cm: Number(form.length_cm || 0),
         breadth_cm: Number(form.breadth_cm || 0),
@@ -114,6 +116,7 @@ export async function POST(req: Request) {
         created_at: new Date(),
         updated_at: new Date(),
       })
+      .onConflictDoNothing()
       .returning({ id: consignments.id });
 
       // 2️⃣ Insert provider shipment

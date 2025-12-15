@@ -68,13 +68,14 @@ export async function POST(req: Request) {
     // Update DB
     await db
       .update(consignments)
-      .set({ lastStatus: "CANCELLED" })
+      .set({ current_status: "CANCELLED" })
       .where(eq(consignments.awb, awb));
 
     await db.insert(trackingHistory).values({
-      consignmentId: awb,
-      oldStatus: null,
-      newStatus: "CANCELLED",
+      consignment_id: awb,
+      old_status: null,
+      new_status: "CANCELLED",
+      changed_at: new Date(),
     });
 
     return NextResponse.json({ ok: true });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments, providerShipments } from "@/app/db/schema";
+import { clientCredentials, consignments, providerShipments } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/app/lib/crypto/encryption";
 

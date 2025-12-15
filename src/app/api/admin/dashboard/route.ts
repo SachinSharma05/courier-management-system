@@ -81,20 +81,22 @@ export async function GET(req: Request) {
       maruti: { total: 0, delivered: 0, pending: 0, rto: 0 },
     };
 
-    for (const r of statsRows.rows) {
-      const total = r.total;
-      const delivered = r.delivered;
-      const rto = r.rto;
-      const pending = r.pending;
+    for (const r of statsRows.rows as any[]) {
+      const provider = String(r.provider) as keyof typeof providers;
 
-      if (providers[r.provider as keyof typeof providers]) {
-        providers[r.provider as keyof typeof providers] = {
-          total,
-          delivered,
-          pending,
-          rto,
-        };
-      }
+      if (!providers[provider]) continue;
+
+      const total = Number(r.total ?? 0);
+      const delivered = Number(r.delivered ?? 0);
+      const rto = Number(r.rto ?? 0);
+      const pending = Number(r.pending ?? 0);
+
+      providers[provider] = {
+        total,
+        delivered,
+        pending,
+        rto,
+      };
     }
 
     /* ------------------------------------------------------------

@@ -42,10 +42,11 @@ async function loadDtdcCredentials(clientId: number) {
 /* --------------------------------------------
    UTILS
 -------------------------------------------- */
-function chunk<T>(arr: T[], size: number) {
+function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size)
+  for (let i = 0; i < arr.length; i += size) {
     out.push(arr.slice(i, i + size));
+  }
   return out;
 }
 
@@ -67,19 +68,26 @@ export async function GET() {
       const creds = await loadDtdcCredentials(clientId);
       if (!creds.apiToken) continue;
 
-      const pending = await db.execute(sql`
-        SELECT id, awb, current_status
-        FROM consignments
-        WHERE client_id = ${clientId}
-          AND provider = ${PROVIDER}
-          AND LOWER(current_status) NOT LIKE '%deliver%'
-          AND LOWER(current_status) NOT LIKE '%rto%'
-        LIMIT 300
-      `);
+      const pending = await db
+      .select({
+        id: consignments.id,
+        awb: consignments.awb,
+        current_status: consignments.current_status,
+      })
+      .from(consignments)
+      .where(
+        and(
+          eq(consignments.client_id, clientId),
+          eq(consignments.provider, "dtdc"),
+          sql`LOWER(${consignments.current_status}) NOT LIKE '%deliver%'`,
+          sql`LOWER(${consignments.current_status}) NOT LIKE '%rto%'`
+        )
+      )
+      .limit(300);
 
-      if (!pending.rows.length) continue;
+      if (!pending.length) continue;
 
-      const groups = chunk(pending.rows, BATCH_SIZE);
+      const groups = chunk(pending, BATCH_SIZE);
 
       for (const group of groups) {
         const awbs = group.map(r => r.awb);
@@ -125,18 +133,18 @@ export async function GET() {
 
           // 🔹 dedup insert event
           await db
-            .insert(trackingEvents)
-            .values({
-              consignment_id: cons.id,
-              provider: PROVIDER,
-              awb: cons.awb,
-              status: newStatus,
-              location: latest.origin || null,
-              remarks: latest.remarks || null,
-              event_time: eventTime,
-              raw: latest,
-            })
-            .onConflictDoNothing();
+          .insert(trackingEvents)
+          .values({
+            consignment_id: cons.id,   // ✔ schema field
+            provider: "dtdc",
+            awb: cons.awb,
+            status: newStatus,
+            location: latest.origin || null,
+            remarks: latest.remarks || null,
+            event_time: eventTime,
+            raw: latest,
+          })
+          .onConflictDoNothing();
 
           totalUpdated++;
         }

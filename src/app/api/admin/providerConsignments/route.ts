@@ -8,8 +8,6 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const provider = url.searchParams.get("provider");
 
-    console.log("Provider from query =", provider);
-
     if (!provider) {
       return NextResponse.json(
         { error: "Missing provider param" },
@@ -31,16 +29,16 @@ export async function GET(req: Request) {
 
     if (status && status !== "all") {
       if (status === "delivered") {
-        where.push(sql`LOWER(last_status) LIKE '%deliver%'`);
+        where.push(sql`LOWER(current_status) LIKE '%deliver%'`);
       } else if (status === "rto") {
-        where.push(sql`LOWER(last_status) LIKE '%rto%'`);
+        where.push(sql`LOWER(current_status) LIKE '%rto%'`);
       } else if (status === "pending") {
         where.push(sql`
-          LOWER(last_status) NOT LIKE '%deliver%' 
-          AND LOWER(last_status) NOT LIKE '%rto%'
+          LOWER(current_status) NOT LIKE '%deliver%' 
+          AND LOWER(current_status) NOT LIKE '%rto%'
         `);
       } else {
-        where.push(sql`LOWER(last_status) LIKE ${"%" + status + "%"}`);
+        where.push(sql`LOWER(current_status) LIKE ${"%" + status + "%"}`);
       }
     }
 
@@ -60,17 +58,17 @@ export async function GET(req: Request) {
       .select({
         id: consignments.id,
         awb: consignments.awb,
-        last_status: consignments.lastStatus,
-        booked_on: consignments.bookedOn,
-        last_updated_on: consignments.lastUpdatedOn,
+        last_status: consignments.current_status,
+        booked_on: consignments.booked_at,
+        last_updated_on: consignments.last_status_at,
         origin: consignments.origin,
         destination: consignments.destination,
-        providers: consignments.providers,
+        providers: consignments.provider,
         client_id: consignments.client_id,
       })
       .from(consignments)
       .where(whereSQL)
-      .orderBy(sql`COALESCE(last_updated_on, created_at) DESC`)
+      .orderBy(sql`COALESCE(last_status_at, created_at) DESC`)
       .limit(pageSize)
       .offset(offset);
 

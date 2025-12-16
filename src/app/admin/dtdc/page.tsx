@@ -25,6 +25,7 @@ import AddClientForm from "./clients/newclient/page";
 import BookShipmentForm from "@/components/admin/BookShipmentForm";
 import BulkBookingPage from "@/components/admin/BulkBookShipmentForm";
 import CancelShipmentForm from "@/components/admin/CancelShipmentForm";
+import { FileText, KeyRound, Layers, Package, Pencil, Search } from "lucide-react";
 
 /* ================= TYPES ================= */
 const SORT_OPTIONS = [
@@ -140,9 +141,9 @@ export default function DtdcDashboard() {
 
       {/* QUICK ACTIONS */}
       <div className="flex flex-wrap gap-3 bg-white border rounded-xl p-4">
-        <Link href="/admin/dtdc/track"><Button variant="outline">Track Shipment</Button></Link>
-        <Link href="/admin/upload"><Button variant="outline">Bulk Upload & Track</Button></Link>
-        <Link href="/admin/dtdc/label"><Button variant="outline">Print Label</Button></Link>
+        <Link href="/admin/dtdc/track"><Button variant="outline"><Search size={15} />Track Shipment</Button></Link>
+        <Link href="/admin/upload"><Button variant="outline"><Layers size={15} />Bulk Upload & Track</Button></Link>
+        <Link href="/admin/dtdc/label"><Button variant="outline"><FileText size={15} />Print Label</Button></Link>
         <Button onClick={() => setAddOpen(true)}>+ Add Client</Button>
       </div>
 
@@ -219,8 +220,8 @@ export default function DtdcDashboard() {
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBookOpen(true)}} value={c.client_id}>Book Shipment</Button>
-                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBulkBookOpen(true)}}>Book Bulk Shipments</Button>
+                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBookOpen(true)}} value={c.client_id}><Package size={15} />Book Shipment</Button>
+                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBulkBookOpen(true)}}><Layers size={15} />Book Bulk Shipments</Button>
                     <Button variant="destructive" onClick={() => {setSelectedClientId(c.client_id); setCancelOpen(true)}}>Cancel Shipment</Button>
                   </td>
                 </tr>
@@ -293,8 +294,8 @@ function ClientMenu({ client }: { client: CPDP }) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => setEdit(true)}>Edit</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setCred(true)}>Credentials</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setEdit(true)}><Pencil size={15} />Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCred(true)}><KeyRound size={15} />Credentials</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

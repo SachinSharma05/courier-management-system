@@ -116,14 +116,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
         {isExpanded && <SectionLabel label="Clients & Providers" />}
         <SidebarItem
-          href="/admin/dtdc/clients"
-          label="Clients"
-          icon={<Users size={18} />}
-          active={pathname.startsWith("/admin/dtdc/clients")}
-          isExpanded={isExpanded}
-        />
-
-        <SidebarItem
           href="/admin/providers"
           label="Providers"
           icon={<Users size={18} />}

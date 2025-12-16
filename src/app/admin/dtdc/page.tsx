@@ -44,7 +44,6 @@ export default function DtdcDashboard() {
 
   const [bookOpen, setBookOpen] = useState(false);
   const [bulkBookOpen, setBulkBookOpen] = useState(false);
-  const [labelOpen, setLabelOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -385,8 +384,15 @@ function AddClientModal({
 }
 
 /* ================= HELPERS ================= */
+type BadgeColor = "blue" | "green" | "yellow" | "red";
 
-function CountBadge({ value, color }: any) {
+function CountBadge({
+  value,
+  color,
+}: {
+  value: number;
+  color: BadgeColor;
+}) {
   const map = {
     blue: "bg-blue-100 text-blue-700",
     green: "bg-green-100 text-green-700",
@@ -396,7 +402,13 @@ function CountBadge({ value, color }: any) {
   return <span className={`px-2 py-1 rounded-full text-sm ${map[color]}`}>{value}</span>;
 }
 
-function ActionBtn({ label, color }: any) {
+function ActionBtn({
+  label,
+  color,
+}: {
+  label: string;
+  color: BadgeColor;
+}) {
   const map = {
     blue: "bg-blue-100 text-blue-800",
     green: "bg-green-50 text-green-700",

@@ -54,7 +54,7 @@ export default function EditClientForm({ id }: { id: string }) {
 
     const json = await res.json();
 
-    if (json.ok) router.push("/admin/clients");
+    if (json.ok) router.push("/admin/dtdc");
     else alert(json.error);
   }
 

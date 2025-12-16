@@ -34,32 +34,39 @@ export async function GET(
   const client = result[0];
 
   // ------------------------------------------
-  // Fetch PENDING consignments
-  // FIX: provider → providers JSONB
-  // ------------------------------------------
-  const pendingSQL = await db.execute(sql`
-    SELECT 
-      id,
-      awb,
-      providers->>0 AS provider,     -- extract first provider from JSONB array
-      last_status,
-      created_at
-    FROM consignments
-    WHERE client_id = ${clientId}
-      AND LOWER(last_status) NOT LIKE '%deliver%'
-      AND LOWER(last_status) NOT LIKE '%rto%'
-    ORDER BY created_at DESC
-    LIMIT 50
-  `);
-
-  const pendingConsignments = pendingSQL.rows;
-
-  // ------------------------------------------
   // FINAL RESPONSE
   // ------------------------------------------
   return NextResponse.json({
     ok: true,
     client,
-    pendingConsignments,
   });
+}
+
+export async function PUT(req: Request, context: any) {
+  const { id } = await context.params; // ✅ FIXED
+
+  const numId = Number(id);
+  if (isNaN(numId)) {
+    return Response.json(
+      { ok: false, error: "Invalid ID" },
+      { status: 400 }
+    );
+  }
+
+  const body = await req.json();
+
+  await db
+    .update(users)
+    .set({
+      username: body.username,
+      email: body.email,
+      company_name: body.company_name,
+      company_address: body.company_address,
+      contact_person: body.contact_person,
+      phone: body.phone,
+      providers: body.providers ?? [],
+    })
+    .where(eq(users.id, numId));
+
+  return Response.json({ ok: true });
 }

@@ -127,7 +127,7 @@ export default function DtdcDashboard() {
           ["Total Shipments", stats.total, "all", "blue"],
           ["Delivered", stats.delivered, "delivered", "green"],
           ["Pending", stats.pending, "pending", "yellow"],
-          ["RTO", stats.rto, "rto", "red"],
+          ["RTO (Return to office)", stats.rto, "rto", "red"],
         ].map(([label, value, status, color]: any) => (
           <Link key={label} href={`/admin/providerTrack/dtdc?status=${status}`}>
             <div className="bg-white border rounded-xl p-4 hover:shadow">
@@ -142,82 +142,141 @@ export default function DtdcDashboard() {
 
       {/* QUICK ACTIONS */}
       <div className="flex flex-wrap gap-3 bg-white border rounded-xl p-4">
-        <Link href="/admin/dtdc/create"><Button>Create Shipment</Button></Link>
-        <Link href="/admin/dtdc/bulk-upload"><Button variant="secondary">Bulk Upload</Button></Link>
-        <Link href="/admin/dtdc/track"><Button variant="outline">Track</Button></Link>
-        <Link href="/admin/dtdc/bulk-track"><Button variant="outline">Bulk Track</Button></Link>
-        <Link href="/admin/dtdc/labels"><Button variant="outline">Print Label</Button></Link>
-        <Link href="/admin/dtdc/cancel"><Button variant="destructive">Cancel</Button></Link>
-      </div>
+        <Link href="/admin/dtdc/book"><Button>Create Shipment</Button></Link>
+        <Link href="/admin/dtdc/bulk-book"><Button variant="secondary">Bulk Upload Shipment</Button></Link>
+        <Link href="/admin/dtdc/track"><Button variant="outline">Track Shipment</Button></Link>
+        <Link href="/admin/upload"><Button variant="outline">Bulk Track Shipment</Button></Link>
+        <Link href="/admin/dtdc/label"><Button variant="outline">Print Label</Button></Link>
+        <Link href="/admin/dtdc/cancel"><Button variant="destructive">Cancel Shipments</Button></Link>
+      </div>      
 
-      {/* CONTROLS */}
-      <div className="flex flex-wrap gap-3 items-center bg-white border rounded-xl p-4">
-        <input
-          placeholder="Search CPDP…"
-          className="border rounded px-3 py-2 text-sm w-60"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      {/* CPDP CLIENTS TABLE */}
+      <div className="bg-white border rounded-xl overflow-hidden">
 
-        <select
-          className="border rounded px-3 py-2 text-sm"
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as any)}
-        >
-          {SORT_OPTIONS.map((s) => (
-            <option key={s.key} value={s.key}>
-              Sort by {s.label}
-            </option>
-          ))}
-        </select>
+        {/* Header */}
+        <div className="px-5 py-4 border-b flex items-center justify-between gap-4">
+          <h3 className="font-semibold text-lg">DTDC – CPDP Clients</h3>
 
-        <Button variant="outline" onClick={exportCSV}>
-          Export CSV
-        </Button>
-      </div>
+          <div className="flex gap-3 items-center">
+            <input
+              placeholder="Search CPDP…"
+              className="border rounded-md px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
 
-      {/* CPDP LIST */}
-      <div className="space-y-3">
-        {cpdpList.map((c) => (
-          <details key={c.client_id} className="bg-white border rounded-xl">
-            <summary className="cursor-pointer px-5 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toggleFav(c.client_id);
-                  }}
-                  className="text-lg"
-                >
-                  {favorites.includes(c.client_id) ? "⭐" : "☆"}
-                </button>
-                <span className="font-semibold">{c.company_name}</span>
-              </div>
+            <select
+              className="border rounded-md px-3 py-2 text-sm"
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as any)}
+            >
+              {SORT_OPTIONS.map((s) => (
+                <option key={s.key} value={s.key}>
+                  Sort by {s.label}
+                </option>
+              ))}
+            </select>
 
-              <div className="flex gap-4 text-sm">
-                <span className="text-blue-600">{c.total}</span>
-                <span className="text-green-600">{c.delivered}</span>
-                <span className="text-yellow-600">{c.pending}</span>
-                <span className="text-red-600">{c.rto}</span>
-              </div>
-            </summary>
+            <Button variant="outline" size="sm" onClick={exportCSV}>
+              Export CSV
+            </Button>
+          </div>
+        </div>
 
-            <div className="border-t p-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
-                <Tile label="Total" value={c.total} color="blue" />
-              </Link>
-              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=delivered`}>
-                <Tile label="Delivered" value={c.delivered} color="green" />
-              </Link>
-              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=pending`}>
-                <Tile label="Pending" value={c.pending} color="yellow" />
-              </Link>
-              <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=rto`}>
-                <Tile label="RTO" value={c.rto} color="red" />
-              </Link>
-            </div>
-          </details>
-        ))}
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 sticky top-0 z-10">
+              <tr className="text-left text-gray-600">
+                <th className="px-4 py-3 w-10"></th>
+                <th className="px-4 py-3">Client</th>
+                <th className="px-4 py-3 text-center">Total</th>
+                <th className="px-4 py-3 text-center">Delivered</th>
+                <th className="px-4 py-3 text-center">Pending</th>
+                <th className="px-4 py-3 text-center">RTO</th>
+                <th className="px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y">
+              {cpdpList.map((c) => {
+                const isFav = favorites.includes(c.client_id);
+
+                return (
+                  <tr
+                    key={c.client_id}
+                    className={`hover:bg-slate-50 transition ${
+                      isFav ? "bg-yellow-50/40" : ""
+                    }`}
+                  >
+                    {/* Favorite */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => toggleFav(c.client_id)}
+                        title="Pin client"
+                        className={`text-lg transition ${
+                          isFav ? "text-yellow-500" : "text-gray-400 hover:text-gray-600"
+                        }`}
+                      >
+                        {isFav ? "⭐" : "☆"}
+                      </button>
+                    </td>
+
+                    {/* Client */}
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">
+                      <Link href={`/admin/dtdc/clients/${c.client_id}/editclient`} className="text-blue-600 hover:underline">
+                        {c.company_name}
+                      </Link>
+                    </td>
+
+                    {/* Metrics */}
+                    <td className="px-4 py-3 text-center">
+                      <CountBadge value={c.total} color="blue" />
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
+                      <CountBadge value={c.delivered} color="green" />
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
+                      <CountBadge value={c.pending} color="yellow" />
+                    </td>
+
+                    <td className="px-4 py-3 text-center">
+                      <CountBadge value={c.rto} color="red" />
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
+                          <ActionBtn label="All" color="blue" />
+                        </Link>
+                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=delivered`}>
+                          <ActionBtn label="Delivered" color="green" />
+                        </Link>
+                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=pending`}>
+                          <ActionBtn label="Pending" color="yellow" />
+                        </Link>
+                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=rto`}>
+                          <ActionBtn label="RTO" color="red" />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {cpdpList.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
+                    No CPDP clients found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -226,11 +285,48 @@ export default function DtdcDashboard() {
 /* -------------------------
    Small helper
 ------------------------- */
-function Tile({ label, value, color }: any) {
+function CountBadge({
+  value,
+  color,
+}: {
+  value: number;
+  color: "blue" | "green" | "yellow" | "red";
+}) {
+  const styles = {
+    blue: "bg-blue-100 text-blue-700",
+    green: "bg-green-100 text-green-700",
+    yellow: "bg-yellow-100 text-yellow-700",
+    red: "bg-red-100 text-red-700",
+  };
+
   return (
-    <div className={`rounded-lg p-3 bg-${color}-50 hover:bg-${color}-100`}>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className={`font-bold text-${color}-700`}>{value}</div>
-    </div>
+    <span
+      className={`inline-flex items-center justify-center min-w-[44px] px-2 py-1 rounded-full text-xs font-semibold ${styles[color]}`}
+    >
+      {value}
+    </span>
+  );
+}
+
+function ActionBtn({
+  label,
+  color,
+}: {
+  label: string;
+  color: "blue" | "green" | "yellow" | "red";
+}) {
+  const styles = {
+    blue: "bg-blue-50 text-blue-700 hover:bg-blue-100",
+    green: "bg-green-50 text-green-700 hover:bg-green-100",
+    yellow: "bg-yellow-50 text-yellow-700 hover:bg-yellow-100",
+    red: "bg-red-50 text-red-700 hover:bg-red-100",
+  };
+
+  return (
+    <button
+      className={`px-3 py-1 rounded-md text-xs font-medium border transition ${styles[color]}`}
+    >
+      {label}
+    </button>
   );
 }

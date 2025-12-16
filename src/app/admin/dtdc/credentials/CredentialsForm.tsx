@@ -16,24 +16,28 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 type ProviderItem = { id: number; name: string };
 
-export default function CredentialsForm({ id }: { id: string }) {
-  const router = useRouter();
-
+export default function CredentialsForm({
+  id,
+  onSuccess,
+}: {
+  id: string;
+  onSuccess?: () => void;
+}) {
   const [creds, setCreds] = useState<CredentialFormState>({
-    id: 0,                // add this
+    id: 0,
     client_id: Number(id),
     provider_id: 0,
     DTDC_CUSTOMER_CODE: "",
     api_key: "",
     api_token: "",
     password: "",
-    });
+  });
 
-  const [masked, setMasked] = useState<{ [key: string]: boolean }>({});
+  const [masked, setMasked] = useState<{ [k: string]: boolean }>({});
   const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
 
-  const { data: providersData } = useSWR("/api/admin/providers", fetcher);
-  const providers: ProviderItem[] = providersData?.providers ?? [];
+  const { data } = useSWR("/api/admin/providers", fetcher);
+  const providers: ProviderItem[] = data?.providers ?? [];
 
   useEffect(() => {
     async function load() {
@@ -45,21 +49,12 @@ export default function CredentialsForm({ id }: { id: string }) {
         return;
       }
 
-      // Load stored credentials
       setCreds(json.credentials);
-
-      // Mask sensitive fields
-      setMasked({
-        password: true,
-        api_token: true,
-        api_key: true,
-      });
+      setMasked({ password: true, api_key: true, api_token: true });
     }
 
     load();
   }, [id]);
-
-  if (!creds) return <div className="p-6">Loading credentials…</div>;
 
   async function save() {
     if (!selectedProvider) {
@@ -69,49 +64,40 @@ export default function CredentialsForm({ id }: { id: string }) {
 
     const res = await fetch(`/api/admin/clients/${id}/credentials`, {
       method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         providerId: selectedProvider,
-        ...creds, // ALL fields go here INCLUDING DTDC_CUSTOMER_CODE
+        ...creds,
       }),
     });
 
     const json = await res.json();
 
-    if (json.ok) router.push("/admin/dtdc/clients");
-    else alert(json.error);
+    if (!json.ok) {
+      alert(json.error);
+      return;
+    }
+
+    onSuccess?.(); // ✅ close modal / refresh
   }
 
   return (
-  <div className="max-w-2xl mx-auto p-6">
-    
-    {/* HEADER */}
-    <div className="mb-6">
-      <h1 className="text-3xl font-bold tracking-tight">API Credentials</h1>
-      <p className="text-gray-500 mt-1">
-        Configure authentication details for selected provider.
-      </p>
-    </div>
+    <div className="space-y-6">
 
-    {/* MAIN CARD */}
-    <div className="bg-white border rounded-xl shadow-sm p-6 space-y-6">
-
-      {/* PROVIDER SELECT */}
-      <div className="space-y-1">
+      {/* Provider */}
+      <div>
         <label className="text-sm font-medium">Provider</label>
-
         <Select
           value={selectedProvider ? String(selectedProvider) : "none"}
-          onValueChange={(v) => {
-            if (v === "none") setSelectedProvider(null);
-            else setSelectedProvider(Number(v));
-          }}
+          onValueChange={(v) =>
+            setSelectedProvider(v === "none" ? null : Number(v))
+          }
         >
-          <SelectTrigger className="w-full md:w-60">
+          <SelectTrigger className="w-64">
             <SelectValue placeholder="Select Provider" />
           </SelectTrigger>
-
           <SelectContent>
-            <SelectItem value="none">-- Select Provider --</SelectItem>
+            <SelectItem value="none">-- Select --</SelectItem>
             {providers.map((p) => (
               <SelectItem key={p.id} value={String(p.id)}>
                 {p.name}
@@ -121,40 +107,34 @@ export default function CredentialsForm({ id }: { id: string }) {
         </Select>
       </div>
 
-      {/* CUSTOMER CODE (ALWAYS SHOW) */}
-      <div className="space-y-1">
+      {/* Customer Code */}
+      <div>
         <label className="text-sm font-medium">DTDC Customer Code</label>
         <input
-          type="text"
-          className="w-full px-3 py-2 rounded-lg border bg-white text-sm 
-                     focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          value={creds["DTDC_CUSTOMER_CODE"] ?? ""}
+          className="border p-2 rounded w-full"
+          value={creds.DTDC_CUSTOMER_CODE}
           onChange={(e) =>
             setCreds({ ...creds, DTDC_CUSTOMER_CODE: e.target.value })
           }
         />
       </div>
 
-      {/* DYNAMIC CREDENTIAL FIELDS */}
+      {/* Dynamic fields */}
       {(Object.keys(creds) as (keyof CredentialFormState)[]).map((key) => {
         if (key === "DTDC_CUSTOMER_CODE") return null;
 
-        const isSecret =
-          key === "password" || key === "api_key" || key === "api_token";
+        const secret = ["password", "api_key", "api_token"].includes(key);
 
         return (
-          <div key={key} className="space-y-1">
-            <label className="text-sm font-medium flex justify-between items-center">
+          <div key={key}>
+            <label className="text-sm font-medium flex justify-between">
               {key}
-              {isSecret && (
+              {secret && (
                 <button
                   type="button"
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-blue-600"
                   onClick={() =>
-                    setMasked((m) => ({
-                      ...m,
-                      [key]: !m[key],
-                    }))
+                    setMasked((m) => ({ ...m, [key]: !m[key] }))
                   }
                 >
                   {masked[key] ? "Show" : "Hide"}
@@ -163,33 +143,23 @@ export default function CredentialsForm({ id }: { id: string }) {
             </label>
 
             <input
-              type={isSecret && masked[key] ? "password" : "text"}
-              className="w-full px-3 py-2 rounded-lg border bg-white text-sm 
-                         focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              type={secret && masked[key] ? "password" : "text"}
+              className="border p-2 rounded w-full"
               value={creds[key] ?? ""}
               onChange={(e) =>
-                setCreds({
-                  ...creds,
-                  [key]: e.target.value,
-                })
+                setCreds({ ...creds, [key]: e.target.value })
               }
             />
           </div>
         );
       })}
 
-      {/* SAVE BUTTON */}
-      <div className="pt-2">
-        <button
-          onClick={save}
-          className="px-5 py-2.5 rounded-lg bg-black text-white shadow 
-                     hover:bg-gray-900 transition disabled:opacity-50"
-        >
-          Save
-        </button>
-      </div>
-
+      <button
+        onClick={save}
+        className="w-full py-2 bg-black text-white rounded-lg"
+      >
+        Save
+      </button>
     </div>
-  </div>
-);
+  );
 }

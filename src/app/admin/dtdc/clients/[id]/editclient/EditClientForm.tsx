@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClientFormState } from "@/interface/ClientFormState"
 
-export default function EditClientForm({ id }: { id: string }) {
-  const router = useRouter();
-
+export default function EditClientForm({
+  id,
+  onSuccess,
+}: {
+  id: string;
+  onSuccess?: () => void;
+}) {
   const [form, setForm] = useState<ClientFormState>({
     id: 0,
     username: "",
@@ -19,7 +23,8 @@ export default function EditClientForm({ id }: { id: string }) {
     phone: "",
     providers: [],
     is_active: true,
-    });
+  });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,79 +53,75 @@ export default function EditClientForm({ id }: { id: string }) {
   async function save() {
     const res = await fetch(`/api/admin/clients/${id}`, {
       method: "PUT",
-      body: JSON.stringify(form),
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
     });
 
     const json = await res.json();
 
-    if (json.ok) router.push("/admin/dtdc");
-    else alert(json.error);
+    if (!json.ok) {
+      alert(json.error);
+      return;
+    }
+
+    onSuccess?.(); // ✅ close modal / refresh parent
   }
 
-  if (loading || !form) return <div>Loading...</div>;
+  if (loading) return <div>Loading...</div>;
 
   function toggleProvider(p: string) {
     setForm({
       ...form,
       providers: form.providers.includes(p)
-        ? form.providers.filter((x: string) => x !== p)
+        ? form.providers.filter((x) => x !== p)
         : [...form.providers, p],
     });
   }
 
   return (
-    <div className="max-w-xl space-y-6 p-6 bg-white shadow rounded-lg">
-      <h1 className="text-2xl font-semibold">Edit Client</h1>
-
+    <div className="space-y-6">
       {/* Company Name */}
-      <div className="space-y-1">
+      <div>
         <label className="text-sm font-semibold">Company Name</label>
         <input
-          className="border p-2 rounded w-full focus:ring focus:ring-blue-200"
+          className="border p-2 rounded w-full"
           value={form.company_name}
-          onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, company_name: e.target.value })
+          }
         />
       </div>
 
       {/* Email */}
-      <div className="space-y-1">
+      <div>
         <label className="text-sm font-semibold">Email</label>
         <input
-          className="border p-2 rounded w-full focus:ring focus:ring-blue-200"
+          className="border p-2 rounded w-full"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
         />
       </div>
 
       {/* Providers */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">Allowed Providers</p>
-
-        <div className="bg-gray-50 p-3 rounded border space-y-2">
-
+      <div>
+        <p className="text-sm font-semibold mb-2">Allowed Providers</p>
+        <div className="space-y-2 bg-gray-50 p-3 rounded border">
           {["dtdc", "delhivery", "xpressbees"].map((p) => (
-            <label
-              key={p}
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-100 p-2 rounded"
-            >
+            <label key={p} className="flex gap-2 items-center">
               <input
                 type="checkbox"
                 checked={form.providers.includes(p)}
                 onChange={() => toggleProvider(p)}
               />
-
-              <span className="font-medium">{p.toUpperCase()}</span>
+              {p.toUpperCase()}
             </label>
           ))}
-
         </div>
       </div>
 
-      {/* Save Button */}
       <button
         onClick={save}
-        className="w-full py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-900"
+        className="w-full py-2 bg-black text-white rounded-lg"
       >
         Save Changes
       </button>

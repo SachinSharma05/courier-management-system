@@ -4,15 +4,29 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-type CPDP = {
-  client_id: number;
-  company_name: string;
-  total: number;
-  delivered: number;
-  pending: number;
-  rto: number;
-};
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import EditClientForm from "./clients/[id]/editclient/EditClientForm";
+import CredentialsForm from "./credentials/CredentialsForm";
+
+import { CPDP } from "@/interface/CPDP";
+import AddClientForm from "./clients/newclient/page";
+import BookShipmentForm from "@/components/admin/BookShipmentForm";
+import BulkBookingPage from "@/components/admin/BulkBookShipmentForm";
+import CancelShipmentForm from "@/components/admin/CancelShipmentForm";
+
+/* ================= TYPES ================= */
 const SORT_OPTIONS = [
   { key: "total", label: "Total" },
   { key: "delivered", label: "Delivered" },
@@ -20,68 +34,68 @@ const SORT_OPTIONS = [
   { key: "rto", label: "RTO" },
 ];
 
+/* ================= PAGE ================= */
+
 export default function DtdcDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<keyof CPDP>("total");
-  
+  const [addOpen, setAddOpen] = useState(false);
+
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bulkBookOpen, setBulkBookOpen] = useState(false);
+  const [labelOpen, setLabelOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+
   const [favorites, setFavorites] = useState<number[]>(() => {
-  if (typeof window === "undefined") return [];
+    if (typeof window === "undefined") return [];
     try {
-      const saved = localStorage.getItem("dtdc_favorites");
-      return saved ? JSON.parse(saved) : [];
+      return JSON.parse(localStorage.getItem("dtdc_favorites") || "[]");
     } catch {
       return [];
     }
   });
 
-  /* -------------------------
-     Load dashboard stats
-  ------------------------- */
+  /* ---------------- Load stats ---------------- */
   useEffect(() => {
     fetch("/api/admin/dtdc/dashboard/stats?provider=dtdc")
       .then((r) => r.json())
-      .then((data) => setStats(data));
+      .then(setStats);
   }, []);
 
-  /* -------------------------
-     Filter + Sort CPDPs
-  ------------------------- */
+  /* ---------------- Filter + sort ---------------- */
   const cpdpList: CPDP[] = useMemo(() => {
     if (!stats?.clients) return [];
 
-    // 1️⃣ search
     const filtered = stats.clients.filter((c: CPDP) =>
       c.company_name.toLowerCase().includes(query.toLowerCase())
     );
 
-    // 2️⃣ sort by key
     const sorted = [...filtered].sort(
       (a, b) => (Number(b[sortKey]) || 0) - (Number(a[sortKey]) || 0)
     );
 
-    // 3️⃣ pin favorites on top
     return sorted.sort((a, b) => {
-      const aFav = favorites.includes(a.client_id);
-      const bFav = favorites.includes(b.client_id);
-      return aFav === bFav ? 0 : aFav ? -1 : 1;
+      const af = favorites.includes(a.client_id);
+      const bf = favorites.includes(b.client_id);
+      return af === bf ? 0 : af ? -1 : 1;
     });
   }, [stats, query, sortKey, favorites]);
 
-  /* -------------------------
-     Persist favorites
-  ------------------------- */
   useEffect(() => {
     localStorage.setItem("dtdc_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  if (!stats) {
-    return <div className="p-8">Loading…</div>;
+  if (!stats) return <div className="p-8">Loading…</div>;
+
+  /* ---------------- Helpers ---------------- */
+
+  function toggleFav(id: number) {
+    setFavorites((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
-  /* -------------------------
-     Export CSV
-  ------------------------- */
   function exportCSV() {
     const rows = [
       ["Company", "Total", "Delivered", "Pending", "RTO"],
@@ -93,33 +107,20 @@ export default function DtdcDashboard() {
         c.rto,
       ]),
     ];
-
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
+    const blob = new Blob([rows.map((r) => r.join(",")).join("\n")], {
+      type: "text/csv",
+    });
     const a = document.createElement("a");
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = "dtdc_cpdp_stats.csv";
     a.click();
-  }
-
-  /* -------------------------
-     Toggle Favorite
-  ------------------------- */
-  function toggleFav(id: number) {
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
   }
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">DTDC Dashboard</h1>
-      </div>
+      <h1 className="text-2xl font-bold">DTDC Dashboard</h1>
 
       {/* SUMMARY */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -127,14 +128,12 @@ export default function DtdcDashboard() {
           ["Total Shipments", stats.total, "all", "blue"],
           ["Delivered", stats.delivered, "delivered", "green"],
           ["Pending", stats.pending, "pending", "yellow"],
-          ["RTO (Return to office)", stats.rto, "rto", "red"],
-        ].map(([label, value, status, color]: any) => (
-          <Link key={label} href={`/admin/providerTrack/dtdc?status=${status}`}>
+          ["RTO", stats.rto, "rto", "red"],
+        ].map(([l, v, s, c]: any) => (
+          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
             <div className="bg-white border rounded-xl p-4 hover:shadow">
-              <div className="text-xs text-gray-500">{label}</div>
-              <div className={`text-2xl font-bold text-${color}-600`}>
-                {value}
-              </div>
+              <div className="text-xs text-gray-500">{l}</div>
+              <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>
             </div>
           </Link>
         ))}
@@ -142,25 +141,22 @@ export default function DtdcDashboard() {
 
       {/* QUICK ACTIONS */}
       <div className="flex flex-wrap gap-3 bg-white border rounded-xl p-4">
-        <Link href="/admin/dtdc/book"><Button>Create Shipment</Button></Link>
-        <Link href="/admin/dtdc/bulk-book"><Button variant="secondary">Bulk Upload Shipment</Button></Link>
         <Link href="/admin/dtdc/track"><Button variant="outline">Track Shipment</Button></Link>
-        <Link href="/admin/upload"><Button variant="outline">Bulk Track Shipment</Button></Link>
+        <Link href="/admin/upload"><Button variant="outline">Bulk Upload & Track</Button></Link>
         <Link href="/admin/dtdc/label"><Button variant="outline">Print Label</Button></Link>
-        <Link href="/admin/dtdc/cancel"><Button variant="destructive">Cancel Shipments</Button></Link>
-      </div>      
+        <Button onClick={() => setAddOpen(true)}>+ Add Client</Button>
+      </div>
 
-      {/* CPDP CLIENTS TABLE */}
+      {/* TABLE */}
       <div className="bg-white border rounded-xl overflow-hidden">
 
-        {/* Header */}
-        <div className="px-5 py-4 border-b flex items-center justify-between gap-4">
+        <div className="px-5 py-4 border-b flex justify-between">
           <h3 className="font-semibold text-lg">DTDC – CPDP Clients</h3>
 
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-3">
             <input
               placeholder="Search CPDP…"
-              className="border rounded-md px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="border rounded-md px-3 py-2 text-sm w-56"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -177,156 +173,235 @@ export default function DtdcDashboard() {
               ))}
             </select>
 
-            <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Button size="sm" variant="outline" onClick={exportCSV}>
               Export CSV
             </Button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 sticky top-0 z-10">
-              <tr className="text-left text-gray-600">
-                <th className="px-4 py-3 w-10"></th>
-                <th className="px-4 py-3">Client</th>
-                <th className="px-4 py-3 text-center">Total</th>
-                <th className="px-4 py-3 text-center">Delivered</th>
-                <th className="px-4 py-3 text-center">Pending</th>
-                <th className="px-4 py-3 text-center">RTO</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-4 py-3 w-10"></th>
+              <th className="px-4 py-3">Client</th>
+              <th className="px-4 py-3 text-center">Total</th>
+              <th className="px-4 py-3 text-center">Delivered</th>
+              <th className="px-4 py-3 text-center">Pending</th>
+              <th className="px-4 py-3 text-center">RTO</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="px-4 py-3">Services</th>
+            </tr>
+          </thead>
 
-            <tbody className="divide-y">
-              {cpdpList.map((c) => {
-                const isFav = favorites.includes(c.client_id);
+          <tbody className="divide-y">
+            {cpdpList.map((c) => {
+              const fav = favorites.includes(c.client_id);
+              return (
+                <tr key={c.client_id} className={fav ? "bg-yellow-50/40" : ""}>
+                  <td className="px-4 py-3">
+                    <button onClick={() => toggleFav(c.client_id)}>
+                      {fav ? "⭐" : "☆"}
+                    </button>
+                  </td>
 
-                return (
-                  <tr
-                    key={c.client_id}
-                    className={`hover:bg-slate-50 transition ${
-                      isFav ? "bg-yellow-50/40" : ""
-                    }`}
-                  >
-                    {/* Favorite */}
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleFav(c.client_id)}
-                        title="Pin client"
-                        className={`text-lg transition ${
-                          isFav ? "text-yellow-500" : "text-gray-400 hover:text-gray-600"
-                        }`}
-                      >
-                        {isFav ? "⭐" : "☆"}
-                      </button>
-                    </td>
+                  {/* 🔥 CHANGED PART */}
+                  <td className="px-4 py-3 font-medium">
+                    <ClientMenu client={c} />
+                  </td>
 
-                    {/* Client */}
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">
-                      <Link href={`/admin/dtdc/clients/${c.client_id}/editclient`} className="text-blue-600 hover:underline">
-                        {c.company_name}
-                      </Link>
-                    </td>
+                  <td className="px-4 py-3 text-center"><CountBadge value={c.total} color="blue" /></td>
+                  <td className="px-4 py-3 text-center"><CountBadge value={c.delivered} color="green" /></td>
+                  <td className="px-4 py-3 text-center"><CountBadge value={c.pending} color="yellow" /></td>
+                  <td className="px-4 py-3 text-center"><CountBadge value={c.rto} color="red" /></td>
 
-                    {/* Metrics */}
-                    <td className="px-4 py-3 text-center">
-                      <CountBadge value={c.total} color="blue" />
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-                      <CountBadge value={c.delivered} color="green" />
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-                      <CountBadge value={c.pending} color="yellow" />
-                    </td>
-
-                    <td className="px-4 py-3 text-center">
-                      <CountBadge value={c.rto} color="red" />
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
-                          <ActionBtn label="All" color="blue" />
-                        </Link>
-                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=delivered`}>
-                          <ActionBtn label="Delivered" color="green" />
-                        </Link>
-                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=pending`}>
-                          <ActionBtn label="Pending" color="yellow" />
-                        </Link>
-                        <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=rto`}>
-                          <ActionBtn label="RTO" color="red" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {cpdpList.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
-                    No CPDP clients found
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/admin/dtdc/clients/${c.client_id}/track?status=all`}>
+                      <ActionBtn label="Track" color="blue" />
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBookOpen(true)}} value={c.client_id}>Book Shipment</Button>
+                    <Button variant="outline" onClick={() => {setSelectedClientId(c.client_id); setBulkBookOpen(true)}}>Book Bulk Shipments</Button>
+                    <Button variant="destructive" onClick={() => {setSelectedClientId(c.client_id); setCancelOpen(true)}}>Cancel Shipment</Button>
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
+
+      <AddClientModal
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onCreated={() => {
+          setAddOpen(false);
+          window.location.reload(); // keep logic same
+        }}
+      />
+
+      <Dialog open={bookOpen} onOpenChange={setBookOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Create Shipment</DialogTitle>
+          </DialogHeader>
+          {selectedClientId && (
+            <BookShipmentForm clientId={selectedClientId} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkBookOpen} onOpenChange={setBulkBookOpen}>
+        <DialogContent className="max-w-6xl h-[85vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Shipments</DialogTitle>
+          </DialogHeader>
+          <div className="h-full overflow-auto pr-2">
+            {selectedClientId && (
+              <BulkBookingPage clientId={selectedClientId} />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Cancel Shipments</DialogTitle>
+          </DialogHeader>
+          {selectedClientId && (
+            <CancelShipmentForm clientId={selectedClientId} />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
 
-/* -------------------------
-   Small helper
-------------------------- */
-function CountBadge({
-  value,
-  color,
+/* ================= CLIENT MENU ================= */
+
+function ClientMenu({ client }: { client: CPDP }) {
+  const [edit, setEdit] = useState(false);
+  const [cred, setCred] = useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="text-blue-600 hover:underline">
+            {client.company_name}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => setEdit(true)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setCred(true)}>Credentials</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <EditClientModal open={edit} onOpenChange={setEdit} clientId={client.client_id} />
+      <CredentialsModal open={cred} onOpenChange={setCred} clientId={client.client_id} />
+    </>
+  );
+}
+
+/* ================= MODALS ================= */
+
+function EditClientModal({
+  open,
+  onOpenChange,
+  clientId,
 }: {
-  value: number;
-  color: "blue" | "green" | "yellow" | "red";
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  clientId: number;
 }) {
-  const styles = {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Edit Client</DialogTitle>
+        </DialogHeader>
+
+        <EditClientForm
+          id={String(clientId)}
+          onSuccess={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CredentialsModal({
+  open,
+  onOpenChange,
+  clientId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  clientId: number;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Client Credentials</DialogTitle>
+        </DialogHeader>
+
+        <CredentialsForm
+          id={String(clientId)}
+          onSuccess={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AddClientModal({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Add Client</DialogTitle>
+        </DialogHeader>
+
+        <AddClientForm
+          onSuccess={() => {
+            onOpenChange(false);
+            onCreated(); // refresh list
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ================= HELPERS ================= */
+
+function CountBadge({ value, color }: any) {
+  const map = {
     blue: "bg-blue-100 text-blue-700",
     green: "bg-green-100 text-green-700",
     yellow: "bg-yellow-100 text-yellow-700",
     red: "bg-red-100 text-red-700",
   };
-
-  return (
-    <span
-      className={`inline-flex items-center justify-center min-w-[44px] px-2 py-1 rounded-full text-xs font-semibold ${styles[color]}`}
-    >
-      {value}
-    </span>
-  );
+  return <span className={`px-2 py-1 rounded-full text-sm ${map[color]}`}>{value}</span>;
 }
 
-function ActionBtn({
-  label,
-  color,
-}: {
-  label: string;
-  color: "blue" | "green" | "yellow" | "red";
-}) {
-  const styles = {
-    blue: "bg-blue-50 text-blue-700 hover:bg-blue-100",
-    green: "bg-green-50 text-green-700 hover:bg-green-100",
-    yellow: "bg-yellow-50 text-yellow-700 hover:bg-yellow-100",
-    red: "bg-red-50 text-red-700 hover:bg-red-100",
+function ActionBtn({ label, color }: any) {
+  const map = {
+    blue: "bg-blue-100 text-blue-800",
+    green: "bg-green-50 text-green-700",
+    yellow: "bg-yellow-50 text-yellow-700",
+    red: "bg-red-50 text-red-700",
   };
-
-  return (
-    <button
-      className={`px-3 py-1 rounded-md text-xs font-medium border transition ${styles[color]}`}
-    >
-      {label}
-    </button>
-  );
+  return <button className={`px-3 py-1 rounded-md text-sm ${map[color]}`}>{label}</button>;
 }

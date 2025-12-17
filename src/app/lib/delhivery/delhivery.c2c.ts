@@ -103,10 +103,6 @@ export const dlvC2C = {
       ref_ids: refId,
     }),
 
-  // ---- COST ESTIMATE ----
-  // ---- COST ESTIMATE ----
-// ---- COST ESTIMATE (CORRECTED) ----
-// ---- COST ESTIMATE ----
 // ---- COST ESTIMATE ----
 calculateCost: (query: {
   o_pin: string;
@@ -125,7 +121,7 @@ calculateCost: (query: {
     md: query.md ?? "E",
     pt: query.pt ?? "Pre-paid",
     ss: query.ss ?? "Delivered",
-    cl: query.client_code,      // 🔥 THIS FIXES ZONE & PRICE
+    cl: query.client_code,      // ✅ THIS IS CORRECT
   };
 
   if (query.pt === "COD") {

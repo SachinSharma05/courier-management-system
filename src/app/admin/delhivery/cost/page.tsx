@@ -149,13 +149,17 @@ function simplifyCost(result: any[]) {
   return {
     zone: r.zone,
     chargedWeight: r.charged_weight,
-    base: r.charge_AIR + r.charge_FOD + r.charge_WOD,
-    fuel: r.charge_FSC,
-    cod: r.charge_COD + r.charge_CCOD,
-    gst:
-      r.tax_data?.CGST +
-      r.tax_data?.SGST +
-      r.tax_data?.IGST,
-    total: r.total_amount,
+
+    base_charge: r.charge_DL ?? 0,
+    fsc: r.charge_FSC ?? 0,
+    cod_charge: (r.charge_COD ?? 0) + (r.charge_CCOD ?? 0),
+
+    taxes: {
+      cgst: r.tax_data?.CGST ?? 0,
+      sgst: r.tax_data?.SGST ?? 0,
+      igst: r.tax_data?.IGST ?? 0,
+    },
+
+    total: r.total_amount ?? 0,
   };
 }

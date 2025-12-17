@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 
 import { generateCustomLabel } from "@/app/lib/pdf/generateCustomLabel";
 import { mergePDFs } from "@/app/lib/pdf/mergePDFs";
+import Link from "next/link";
 
 export default function GenerateLabelPage() {
   const [awb, setAwb] = useState("");
@@ -71,14 +72,31 @@ export default function GenerateLabelPage() {
   }
 
   return (
-    <div className="px-6 py-6 space-y-6">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      {/* HEADER + BREADCRUMB ROW */}
+      <div className="flex items-start justify-between gap-4">
+        {/* LEFT: Title + subtitle */}
+        <div>
+          <h1 className="text-2xl font-bold leading-tight">
+            Generate Label
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Generate combined shipping labels for DTDC shipments.
+          </p>
+        </div>
+
+        {/* RIGHT: Breadcrumb */}
+        <nav className="text-sm text-gray-500 flex gap-2 items-center whitespace-nowrap">
+          <Link href="/admin" className="hover:underline">Home</Link>
+          <span>/</span>
+          <Link href="/admin/dtdc" className="hover:underline">DTDC Dashboard</Link>
+          <span>/</span>
+          <span className="text-gray-700 font-medium">Label</span>
+        </nav>
+      </div>
+
       <Card className="max-w-xl mx-auto">
-        <CardHeader>
-          <CardTitle>Generate Shipping Label</CardTitle>
-        </CardHeader>
-
         <CardContent className="space-y-4">
-
           <div className="space-y-1">
             <label className="text-sm font-medium">Enter AWB Number</label>
             <Input

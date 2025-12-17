@@ -4,89 +4,64 @@ import { pgTable, serial, text, varchar, timestamp, uuid, date, time, integer, b
 // CONSIGNMENTS
 export const consignments = pgTable("consignments", {
   id: uuid("id").defaultRandom().primaryKey(),
-
   client_id: integer("client_id").notNull(),
-
   provider: varchar("provider", { length: 30 }).notNull(), // delhivery | dtdc | maruti
   awb: varchar("awb", { length: 50 }).notNull().unique(),
-
   reference_number: varchar("reference_number", { length: 100 }),
-
   service_type: varchar("service_type", { length: 30 }),
   payment_mode: varchar("payment_mode", { length: 20 }),
   cod_amount: numeric("cod_amount", { precision: 12, scale: 2 }),
-
   origin_pincode: varchar("origin_pincode", { length: 10 }),
   destination_pincode: varchar("destination_pincode", { length: 10 }),
   origin: text("origin"),
   destination: text("destination"),
-
   length_cm: integer("length_cm"),
   breadth_cm: integer("breadth_cm"),
   height_cm: integer("height_cm"),
   weight_g: integer("weight_g"),
   chargeable_weight_g: integer("chargeable_weight_g"),
-
   estimated_cost: numeric("estimated_cost", { precision: 12, scale: 2 }),
   invoice_amount: numeric("invoice_amount", { precision: 12, scale: 2 }),
-
   current_status: varchar("current_status", { length: 100 }),
   expected_delivery_date: timestamp("expected_delivery_date"),
-
   booked_at: timestamp("booked_at"),
   last_status_at: timestamp("last_status_at"),
-
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
 
 export const providerShipments = pgTable("provider_shipments", {
   id: uuid("id").defaultRandom().primaryKey(),
-
   consignment_id: uuid("consignment_id")
     .notNull()
     .references(() => consignments.id, { onDelete: "cascade" }),
-
   provider: varchar("provider", { length: 30 }).notNull(),
-
   provider_order_id: varchar("provider_order_id", { length: 100 }),
   provider_tracking_id: varchar("provider_tracking_id", { length: 100 }),
-
   provider_awb: varchar("provider_awb", { length: 50 }),
   provider_cawb: varchar("provider_cawb", { length: 50 }),
-
   label_url: text("label_url"),
   manifest_url: text("manifest_url"),
   pod_url: text("pod_url"),
-
   raw_request: jsonb("raw_request"),
   raw_response: jsonb("raw_response"),
-
   last_synced_at: timestamp("last_synced_at"),
-
   created_at: timestamp("created_at").defaultNow(),
 });
 
 // TRACKING EVENTS
 export const trackingEvents = pgTable("tracking_events", {
   id: uuid("id").defaultRandom().primaryKey(),
-
   consignment_id: uuid("consignment_id")
     .notNull()
     .references(() => consignments.id, { onDelete: "cascade" }),
-
   provider: varchar("provider", { length: 30 }).notNull(),
-
   awb: varchar("awb", { length: 50 }).notNull(),
-
   status: varchar("status", { length: 100 }),
   location: varchar("location", { length: 200 }),
   remarks: text("remarks"),
-
   event_time: timestamp("event_time"),
-
   raw: jsonb("raw"),
-
   created_at: timestamp("created_at").defaultNow(),
 });
 
@@ -159,6 +134,7 @@ export const providers = pgTable("providers", {
   key: varchar("key", { length: 50 }).notNull().unique(), // "dtdc", "delhivery"
   name: varchar("name", { length: 150 }).notNull(),
   description: text("description"),
+  is_active: boolean("is_active").notNull().default(true),
   created_at: timestamp("created_at").defaultNow().notNull(),
 });
 

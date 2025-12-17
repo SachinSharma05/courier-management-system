@@ -125,9 +125,9 @@ export default function UploadPage() {
 
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 flex gap-2 items-center">
-        <Link href="/admin" className="hover:underline">Dashboard</Link>
+        <Link href="/admin" className="hover:underline">Home</Link>
         <span>/</span>
-        <Link href="/admin/dtdc/clients" className="hover:underline">Clients</Link>
+        <Link href="/admin/dtdc" className="hover:underline">DTDC Dashboard</Link>
         <span>/</span>
         <span className="text-gray-700 font-medium">Upload Excel</span>
       </nav>

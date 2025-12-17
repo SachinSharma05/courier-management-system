@@ -118,12 +118,25 @@ export default function DtdcDashboard() {
 
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      {/* HEADER + BREADCRUMB ROW */}
+      <div className="flex items-start justify-between gap-4">
+        {/* LEFT: Title + subtitle */}
+        <div>
+          <h1 className="text-2xl font-bold leading-tight">
+            DTDC Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Overview and quick actions for DTDC shipments
+          </p>
+        </div>
 
-      {/* HEADER */}
-      <h1 className="text-2xl font-bold">DTDC Dashboard</h1>
-      <p className="text-sm text-muted-foreground">
-        Overview and quick actions for DTDC shipments
-      </p>
+        {/* RIGHT: Breadcrumb */}
+        <nav className="text-sm text-gray-500 flex gap-2 items-center whitespace-nowrap">
+          <Link href="/admin" className="hover:underline">Home</Link>
+          <span>/</span>
+          <span className="text-gray-700 font-medium">Dashboard</span>
+        </nav>
+      </div>
 
       {/* SUMMARY */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -133,7 +146,7 @@ export default function DtdcDashboard() {
           ["Pending", stats.pending, "pending", "yellow"],
           ["RTO", stats.rto, "rto", "red"],
         ].map(([l, v, s, c]: any) => (
-          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
+          <Link key={l} href="">
             <div className="bg-white border rounded-xl p-4 hover:shadow">
               <div className="text-xs text-gray-500">{l}</div>
               <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>

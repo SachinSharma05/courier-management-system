@@ -226,7 +226,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
   {/* ---------- UI (fixed: restores inner scroll exactly) ---------- */}
   return (
     <div className={loading ? "pointer-events-none opacity-50" : ""}>
-      <div className="space-y-4 p-2 md:p-4">
+      <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
 
         {/* HEADER */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -237,49 +237,14 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link href={`/admin/dtdc/clients`}>
-                <Button
-                  className="bg-orange-600 text-white hover:bg-orange-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
-              >
-                Back to CPDP - Clients
-              </Button>
-            </Link>
-            <Button
-              disabled={loading}
-              onClick={refreshTracking}
-              className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
-                  </svg>
-                  Refreshing…
-                </span>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Status
-                </>
-              )}
-            </Button>
-
-            <Button
-              variant="default"
-              className="h-10 px-5 rounded-lg shadow"
-              onClick={() => {
-                try {
-                  exportConsignmentsToExcel(rows);
-                  toast.success("Excel exported");
-                } catch {
-                  toast.error("Unable to export");
-                }
-              }}
-            >
-              Export Excel
-            </Button>
-          </div>
+          {/* RIGHT: Breadcrumb */}
+            <nav className="text-sm text-gray-500 flex gap-2 items-center whitespace-nowrap">
+              <Link href="/admin" className="hover:underline">Home</Link>
+              <span>/</span>
+              <Link href="/admin/dtdc" className="hover:underline">DTDC Dashboard</Link>
+              <span>/</span>
+              <span className="text-gray-700 font-medium">Track</span>
+            </nav>
         </div>
 
         {/* FILTER BAR */}
@@ -330,16 +295,40 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
             </Select>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm text-gray-500">Page Size</span>
-              <Input
-                type="number"
-                className="w-20 rounded-lg"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Math.max(5, Number(e.target.value || DEFAULT_PAGE_SIZE)));
-                  setPage(1);
-                }}
-              />
+              <Button
+              disabled={loading}
+              onClick={refreshTracking}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 h-10 rounded-lg flex items-center gap-2 shadow"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+                  </svg>
+                  Refreshing…
+                </span>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh Status
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="default"
+              className="h-10 px-5 rounded-lg shadow"
+              onClick={() => {
+                try {
+                  exportConsignmentsToExcel(rows);
+                  toast.success("Excel exported");
+                } catch {
+                  toast.error("Unable to export");
+                }
+              }}
+            >
+              Export Excel
+            </Button>
             </div>
           </CardContent>
         </Card>

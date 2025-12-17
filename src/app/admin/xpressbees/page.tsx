@@ -29,7 +29,7 @@ export default function XpressBeesDashboard() {
           ["Pending", stats.pending, "pending", "yellow"],
           ["RTO", stats.rto, "rto", "red"],
         ].map(([l, v, s, c]: any) => (
-          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
+          <Link key={l} href="">
             <div className="bg-white border rounded-xl p-4 hover:shadow">
               <div className="text-xs text-gray-500">{l}</div>
               <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>

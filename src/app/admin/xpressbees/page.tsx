@@ -7,7 +7,7 @@ export default function XpressBeesDashboard() {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats?provider=xpressbees")
+    fetch("/api/admin/xpressbees/dashboard/stats?provider=xpressbees")
       .then((r) => r.json())
       .then((data) => setStats(data));
   }, []);
@@ -15,63 +15,27 @@ export default function XpressBeesDashboard() {
   if (!stats) return <div className="p-8">Loading…</div>;
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       <h1 className="text-2xl font-semibold">XpressBees Dashboard</h1>
+      <p className="text-sm text-muted-foreground">
+        Overview and quick actions for XpressBees shipments
+      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-        {/* Total */}
-        <Link href="/admin/providerTrack/xpressbees?status=all">
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-blue-500"></span>
-                Total Shipments
-              </span>
-              <span className="text-xl font-bold">{stats.total}</span>
+      {/* SUMMARY */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          ["Total Shipments", stats.total, "all", "blue"],
+          ["Delivered", stats.delivered, "delivered", "green"],
+          ["Pending", stats.pending, "pending", "yellow"],
+          ["RTO", stats.rto, "rto", "red"],
+        ].map(([l, v, s, c]: any) => (
+          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
+            <div className="bg-white border rounded-xl p-4 hover:shadow">
+              <div className="text-xs text-gray-500">{l}</div>
+              <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>
             </div>
-          </div>
-        </Link>
-
-        {/* Delivered */}
-        <Link href="/admin/providerTrack/xpressbees?status=delivered">
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-green-500"></span>
-                Delivered
-              </span>
-              <span className="text-xl font-bold">{stats.delivered}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Pending */}
-        <Link href="/admin/providerTrack/xpressbees?status=pending">
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-yellow-500"></span>
-                Pending
-              </span>
-              <span className="text-xl font-bold">{stats.pending}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* RTO */}
-        <Link href="/admin/providerTrack/xpressbees?status=rto">
-          <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-            <div className="flex justify-between">
-              <span className="text-lg font-semibold flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-red-500"></span>
-                RTO
-              </span>
-              <span className="text-xl font-bold">{stats.rto}</span>
-            </div>
-          </div>
-        </Link>
-
+          </Link>
+        ))}
       </div>
     </div>
   );

@@ -19,29 +19,6 @@ import {
 } from "lucide-react";
 
 /* ---------- Reusable Components ---------- */
-
-function StatCard({ label, value, color, link }: any) {
-  return (
-    <Link href={link}>
-      <div
-        className="
-          cursor-pointer p-6 rounded-xl bg-white 
-          shadow-sm border hover:shadow-xl hover:-translate-y-1 
-          transition-all duration-200
-        "
-      >
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className={`h-3 w-3 rounded-full ${color}`}></span>
-            <span className="text-lg font-medium">{label}</span>
-          </div>
-          <span className="text-2xl font-bold">{value}</span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function ToolCard({ title, desc, href, icon }: any) {
   return (
     <Link href={href}>
@@ -84,51 +61,28 @@ export default function DelhiveryDashboard() {
   if (!stats) return <div className="p-8 text-gray-600">Loading…</div>;
 
   return (
-    <div className="p-4 space-y-10">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Delhivery Dashboard</h1>
+      <h1 className="text-2xl font-bold">Delhivery Dashboard</h1>
+      <p className="text-sm text-muted-foreground">
+        Overview and quick actions for Delhivery shipments
+      </p>
 
-        <Link
-          href="/admin/providers"
-          className="
-            px-4 py-2 rounded-lg bg-gradient-to-r 
-            from-blue-600 to-blue-700 
-            text-white shadow-md 
-            hover:shadow-lg hover:-translate-y-0.5 
-            transition
-          "
-        >
-          Back to Providers
-        </Link>
-      </div>
-
-      {/* STATS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          label="Total Shipments"
-          value={stats.total}
-          color="bg-blue-500"
-          link="/admin/delhivery/c2c/shipments"
-        />
-        <StatCard
-          label="Delivered"
-          value={stats.delivered}
-          color="bg-green-500"
-          link="/admin/delhivery/c2c/shipments?status=delivered"
-        />
-        <StatCard
-          label="Pending"
-          value={stats.pending}
-          color="bg-yellow-500"
-          link="/admin/delhivery/c2c/shipments?status=pending"
-        />
-        <StatCard
-          label="RTO"
-          value={stats.rto}
-          color="bg-red-500"
-          link="/admin/delhivery/c2c/shipments?status=rto"
-        />
+      {/* SUMMARY */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          ["Total Shipments", stats.total, "all", "blue"],
+          ["Delivered", stats.delivered, "delivered", "green"],
+          ["Pending", stats.pending, "pending", "yellow"],
+          ["RTO", stats.rto, "rto", "red"],
+        ].map(([l, v, s, c]: any) => (
+          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
+            <div className="bg-white border rounded-xl p-4 hover:shadow">
+              <div className="text-xs text-gray-500">{l}</div>
+              <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* =============================== */}

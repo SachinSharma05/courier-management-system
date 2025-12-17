@@ -1,7 +1,7 @@
 // app/api/admin/dashboard/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments, complaints } from "@/app/db/schema";
+import { complaints } from "@/app/db/schema";
 import { sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";

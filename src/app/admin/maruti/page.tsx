@@ -7,13 +7,14 @@ import {
   Search,
   PlusSquare,
   FileText,
+  Boxes,
 } from "lucide-react";
 
 export default function MarutiDashboard() {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats?provider=maruti")
+    fetch("/api/admin/maruti/dashboard/stats?provider=maruti")
       .then((r) => r.json())
       .then((data) => setStats(data));
   }, []);
@@ -21,46 +22,29 @@ export default function MarutiDashboard() {
   if (!stats) return <div className="p-8">Loading…</div>;
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
 
       {/* ---------- HEADER ---------- */}
-      <div>
-        <h1 className="text-2xl font-semibold">Maruti Dashboard</h1>
+      <h1 className="text-2xl font-semibold">Maruti Dashboard</h1>
         <p className="text-sm text-muted-foreground">
           Overview and quick actions for Maruti shipments
         </p>
-      </div>
 
       {/* ---------- STATS ---------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-
-        <StatCard
-          href="/admin/providerTrack/maruti?status=all"
-          label="Total Shipments"
-          value={stats.total}
-          color="bg-blue-500"
-        />
-
-        <StatCard
-          href="/admin/providerTrack/maruti?status=delivered"
-          label="Delivered"
-          value={stats.delivered}
-          color="bg-green-500"
-        />
-
-        <StatCard
-          href="/admin/providerTrack/maruti?status=pending"
-          label="Pending"
-          value={stats.pending}
-          color="bg-yellow-500"
-        />
-
-        <StatCard
-          href="/admin/providerTrack/maruti?status=rto"
-          label="RTO"
-          value={stats.rto}
-          color="bg-red-500"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          ["Total Shipments", stats.total, "all", "blue"],
+          ["Delivered", stats.delivered, "delivered", "green"],
+          ["Pending", stats.pending, "pending", "yellow"],
+          ["RTO", stats.rto, "rto", "red"],
+        ].map(([l, v, s, c]: any) => (
+          <Link key={l} href={`/admin/providerTrack/dtdc?status=${s}`}>
+            <div className="bg-white border rounded-xl p-4 hover:shadow">
+              <div className="text-xs text-gray-500">{l}</div>
+              <div className={`text-2xl font-bold text-${c}-600`}>{v}</div>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {/* ---------- QUICK ACTIONS ---------- */}
@@ -69,9 +53,9 @@ export default function MarutiDashboard() {
         {/* All Shipments */}
         <ActionCard
           href="/admin/providerTrack/maruti"
-          icon={<Truck />}
+          icon={<Boxes size={20} />}
           title="All Shipments"
-          desc="View and manage all Maruti consignments"
+          desc="View, filter & search Maruti consignments"
         />
 
         {/* Track Shipment */}
@@ -104,28 +88,6 @@ export default function MarutiDashboard() {
 }
 
 /* ----------------- Small Components ----------------- */
-
-function StatCard({
-  href,
-  label,
-  value,
-  color,
-}: any) {
-  return (
-    <Link href={href}>
-      <div className="cursor-pointer border rounded-xl p-6 shadow-md bg-white hover:shadow-lg hover:-translate-y-1 transition">
-        <div className="flex justify-between items-center">
-          <span className="text-lg font-semibold flex items-center gap-2">
-            <span className={`h-3 w-3 rounded-full ${color}`} />
-            {label}
-          </span>
-          <span className="text-xl font-bold">{value}</span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function ActionCard({
   href,
   icon,

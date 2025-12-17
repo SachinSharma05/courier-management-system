@@ -121,6 +121,9 @@ export default function DtdcDashboard() {
 
       {/* HEADER */}
       <h1 className="text-2xl font-bold">DTDC Dashboard</h1>
+      <p className="text-sm text-muted-foreground">
+        Overview and quick actions for DTDC shipments
+      </p>
 
       {/* SUMMARY */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -104,15 +104,43 @@ export const dlvC2C = {
     }),
 
   // ---- COST ESTIMATE ----
-  calculateCost: (query: {
-    o_pin: string;
-    d_pin: string;
-    cgm: number;
-    md?: "E" | "S"; // mode
-    ss?: string; // status
-    pt?: string; // pre-paid / cod
-  }) =>
-    c2cCall("/api/kinko/v1/invoice/charges/.json", "GET", undefined, query),
+  // ---- COST ESTIMATE ----
+// ---- COST ESTIMATE (CORRECTED) ----
+// ---- COST ESTIMATE ----
+// ---- COST ESTIMATE ----
+calculateCost: (query: {
+  o_pin: string;
+  d_pin: string;
+  cgm: number;                  // grams
+  md?: "E" | "S";
+  pt?: "Pre-paid" | "COD";
+  ss?: "Delivered" | "RTO" | "DTO";
+  cod_amount?: number;
+  client_code: string;          // 🔥 REQUIRED
+}) => {
+  const params: Record<string, any> = {
+    o_pin: query.o_pin,
+    d_pin: query.d_pin,
+    cgm: query.cgm,
+    md: query.md ?? "E",
+    pt: query.pt ?? "Pre-paid",
+    ss: query.ss ?? "Delivered",
+    cl: query.client_code,      // 🔥 THIS FIXES ZONE & PRICE
+  };
+
+  if (query.pt === "COD") {
+    params.cod = query.cod_amount ?? 0;
+    params.ocod = "Y";
+    params.dcod = "Y";
+  }
+
+  return c2cCall(
+    "/api/kinko/v1/invoice/charges/.json",
+    "GET",
+    undefined,
+    params
+  );
+},
 
   // ---- LABEL GENERATION ----
   generateLabel: (awb: string) =>

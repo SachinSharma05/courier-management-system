@@ -92,10 +92,7 @@ export default function PremiumDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="default" onClick={fetchDashboard} className="border px-3">Refresh</Button>
-          <Link href={`/admin/upload`}>
-            <Button variant="default">Upload XLSX</Button>
-          </Link>
+          <Button variant="default" onClick={fetchDashboard} className="border px-3">Refresh Stats</Button>
         </div>
       </div>
 

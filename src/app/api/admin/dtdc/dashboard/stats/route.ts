@@ -37,29 +37,25 @@ export async function GET(req: Request) {
         COUNT(*)::int AS total,
 
         COUNT(*) FILTER (
-          WHERE final_status = 'DELIVERED'
+          WHERE
+            LOWER(current_status) LIKE '%deliver%'
+            AND LOWER(current_status) NOT LIKE '%rto%'
+            AND LOWER(current_status) NOT LIKE '%undeliver%'
+            AND LOWER(current_status) NOT LIKE '%redeliver%'
         )::int AS delivered,
 
         COUNT(*) FILTER (
-          WHERE final_status = 'RTO'
+          WHERE LOWER(current_status) LIKE '%rto%'
         )::int AS rto,
 
         COUNT(*) FILTER (
-          WHERE final_status = 'PENDING'
+          WHERE
+            LOWER(current_status) NOT LIKE '%deliver%'
+            AND LOWER(current_status) NOT LIKE '%rto%'
         )::int AS pending
 
-      FROM (
-        SELECT
-          CASE
-            WHEN LOWER(current_status) LIKE '%rto%'
-              THEN 'RTO'
-            WHEN LOWER(current_status) = 'delivered'
-              THEN 'DELIVERED'
-            ELSE 'PENDING'
-          END AS final_status
-        FROM consignments
+      FROM consignments
         WHERE LOWER(provider) = 'dtdc'
-      ) t;
     `);
 
     const providerRow = providerStatsRes.rows[0] || {

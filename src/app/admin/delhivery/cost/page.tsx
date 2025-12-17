@@ -23,9 +23,11 @@ export default function CostCalculator() {
     const body = {
       origin_pin: payload.origin_pincode,
       destination_pin: payload.destination_pincode,
-      cgm: Number(payload.weight) * 1000, // convert kg → grams
+      cgm: Number(payload.weight) * 1000, // kg → grams
       mode: payload.service === "express" ? "E" : "S",
       payment_type: payload.cod_amount ? "COD" : "Pre-paid",
+      cod_amount: payload.cod_amount ? Number(payload.cod_amount) : undefined,
+      client_code: "VARIABLEINSTINCT C2C", // 🔥 from client credentials
     };
 
     const r = await fetch("/api/admin/delhivery/calculate-cost", {
@@ -139,20 +141,21 @@ function SummaryCard({ label, value }: any) {
 }
 
 // ---- Simplifier ----
-function simplifyCost(raw: any) {
-  if (!Array.isArray(raw) || !raw.length) return null;
+function simplifyCost(result: any[]) {
+  if (!Array.isArray(result) || !result.length) return null;
 
-  const r = raw[0];
+  const r = result[0];
 
   return {
-    base_charge: r.charge_base || r.charge_0E || r.charge_02 || 0,
-    fsc: r.charge_FSC || 0,
-    cod_charge: r.charge_cod || 0,
-    taxes: {
-      cgst: r.tax_data?.CGST || 0,
-      sgst: r.tax_data?.SGST || 0,
-      igst: r.tax_data?.IGST || 0,
-    },
-    total: r.total_amount || 0,
+    zone: r.zone,
+    chargedWeight: r.charged_weight,
+    base: r.charge_AIR + r.charge_FOD + r.charge_WOD,
+    fuel: r.charge_FSC,
+    cod: r.charge_COD + r.charge_CCOD,
+    gst:
+      r.tax_data?.CGST +
+      r.tax_data?.SGST +
+      r.tax_data?.IGST,
+    total: r.total_amount,
   };
 }

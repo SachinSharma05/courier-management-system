@@ -123,7 +123,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           isExpanded={isExpanded}
         />
 
-        {isExpanded && <SectionLabel label="Billing & Finance" />}
+        {/* {isExpanded && <SectionLabel label="Billing & Finance" />}
 
         <SidebarItem
           href="/admin/billing"
@@ -147,7 +147,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
           icon={<ClipboardList size={18} />}
           active={pathname.startsWith("/admin/finance")}
           isExpanded={isExpanded}
-        />
+        /> */}
 
         {isExpanded && <SectionLabel label="Complaints" />}
 

@@ -46,7 +46,7 @@ export async function PUT(req: Request, context: any) {
   }
 
   const body = await req.json();
-  const { name, key, description } = body;
+  const { name, key, description, is_active } = body;
 
   await db
     .update(providers)
@@ -54,6 +54,7 @@ export async function PUT(req: Request, context: any) {
       name,
       key,
       description,
+      is_active,
     })
     .where(eq(providers.id, providerId));
 

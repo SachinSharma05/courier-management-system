@@ -65,6 +65,15 @@ export default function EditProviderForm({ id }: { id: string }) {
         />
       </div>
 
+      <div className = "space-y-1">
+        <label className="text-sm font-semibold">Active Status</label>
+        <select 
+          className="border p-2 rounded w-full focus:ring focus:ring-blue-200">
+          <option value="true" selected={form.is_active} onChange={(e) => setForm({ ...form, is_active: true })}>Active</option>
+          <option value="false" selected={!form.is_active} onChange={(e) => setForm({ ...form, is_active: false })}>Inactive</option>
+          </select>
+      </div>
+
       <button
         onClick={save}
         className="w-full px-4 py-2 bg-black text-white rounded hover:bg-gray-900"

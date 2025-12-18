@@ -12,6 +12,8 @@ export async function GET() {
         id: p.id,
         key: p.key,      // ← IMPORTANT
         name: p.name,
+        description: p.description,
+        isActive: p.is_active,
       })),
     });
   } catch (err: any) {
@@ -32,6 +34,7 @@ export async function POST(req: Request) {
       key,
       name,
       description: description ?? "",
+      isActive: body.is_active ?? true,
     });
 
     return NextResponse.json({ ok: true });

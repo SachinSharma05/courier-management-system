@@ -10,6 +10,7 @@ export default function NewProviderForm() {
     name: "",
     key: "",
     description: "",
+    is_active: true,
   });
 
   async function save() {
@@ -54,6 +55,15 @@ export default function NewProviderForm() {
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
+      </div>
+
+      <div className = "space-y-1">
+        <label className="text-sm font-semibold">Active Status</label>
+        <select
+          className="border p-2 rounded w-full focus:ring focus:ring-blue-200">
+          <option value="true" onChange={(e) => setForm({ ...form, is_active: true })}>Active</option>
+          <option value="false" onChange={(e) => setForm({ ...form, is_active: false })}>Inactive</option>
+          </select>
       </div>
 
       <button

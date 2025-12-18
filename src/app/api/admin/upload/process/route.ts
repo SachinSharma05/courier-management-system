@@ -121,14 +121,30 @@ export async function POST(req: Request) {
         continue;
       }
 
-      // 🚫 IF549 skip (UNCHANGED)
+      /* =====================================================
+         🔥 IF549 — RETAIL TRACKING (NEW LOGIC)
+      ===================================================== */
       if (code === "IF549") {
+        const RETAIL_CLIENT_ID = 549;
+        // Call your NEW retail tracking API here
+        // Example: POST /api/admin/dtdc/retail-track
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_APP_URL}/api/admin/dtdc/retail/track`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ awbs }),
+          }
+        );
+        const json = await res.json();
         finalResults.push({
           code,
-          skipped: true,
-          message: "IF549 is excluded from processing",
+          clientId: RETAIL_CLIENT_ID,
+          totalAwbs: awbs.length,
+          mode: "retail",
+          result: json,
         });
-        continue;
+        continue; // 🔥 IMPORTANT — do not go to DTDC auth flow
       }
 
       // Resolve clientId (UNCHANGED)

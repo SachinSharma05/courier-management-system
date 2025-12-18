@@ -161,6 +161,7 @@ export default function DtdcDashboard() {
         <Link href="/admin/upload"><Button variant="outline"><Layers size={15} />Bulk Upload & Track</Button></Link>
         <Link href="/admin/dtdc/label"><Button variant="outline"><FileText size={15} />Print Label</Button></Link>
         <Button onClick={() => setAddOpen(true)}>+ Add Client</Button>
+        <Link href="/admin/dtdc/retail"><Button variant="outline" className="item-right">Retail Shipments</Button></Link>
       </div>
 
       {/* TABLE */}

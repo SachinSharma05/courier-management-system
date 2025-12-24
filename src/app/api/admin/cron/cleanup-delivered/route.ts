@@ -31,12 +31,6 @@ export async function GET() {
     // Convert → UUID[] array for Postgres
     const idArray = sql`ARRAY[${sql.join(ids.map(id => sql`${id}`), sql`,`)}]::uuid[]`;
 
-    // 2. Delete from tracking_history
-    await db.execute(sql`
-      DELETE FROM tracking_history
-      WHERE consignment_id = ANY(${idArray})
-    `);
-
     // 3. Delete from tracking_events
     await db.execute(sql`
       DELETE FROM tracking_events

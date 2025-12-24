@@ -4,7 +4,6 @@ import { db } from "@/app/db/postgres";
 import {
   consignments,
   trackingEvents,
-  trackingHistory,
   clientCredentials,
 } from "@/app/db/schema";
 import { decrypt } from "@/app/lib/crypto/encryption";
@@ -369,35 +368,12 @@ export async function POST(req: Request) {
         }
       }
 
-      /* ---------------------------------------------
-         INSERT HISTORY (UNCHANGED)
-      --------------------------------------------- */
-      const historyInsertValues = bulkHistoryRows
-        .map((h) => {
-          const cid = idMap.get(h.awb);
-          if (!cid) return null;
-          return {
-            consignmentId: String(cid),
-            oldStatus: h.oldStatus,
-            newStatus: h.newStatus,
-          };
-        })
-        .filter(Boolean) as any[];
-
-      if (historyInsertValues.length > 0) {
-        const batches = chunk(historyInsertValues, 200);
-        for (const batch of batches) {
-          await db.insert(trackingHistory).values(batch);
-        }
-      }
-
       finalResults.push({
         code,
         clientId,
         totalAwbs: awbs.length,
         consignmentsUpserted: bulkConsignmentRows.length,
         eventsInserted: eventInsertValues.length,
-        historyInserted: historyInsertValues.length,
       });
     }
 

@@ -19,7 +19,7 @@ export default function DelhiveryPincode() {
 
     const r = await fetch(`/api/admin/delhivery/pincode?pin=${pin}`);
     const j = await r.json();
-
+    console.log("Postal Data:", j);
     setLoading(false);
     setData(j);
   }
@@ -42,7 +42,7 @@ export default function DelhiveryPincode() {
 }
 
   const postal = data?.delivery_codes?.[0]?.postal_code;
-
+  
   return (
     <div className="p-8 space-y-6">
       <h1 className="text-2xl font-bold">Delhivery Pincode Serviceability</h1>

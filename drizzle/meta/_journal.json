@@ -43,6 +43,13 @@
       "when": 1765979905648,
       "tag": "0005_outgoing_korath",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1766074783632,
+      "tag": "0006_nosy_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

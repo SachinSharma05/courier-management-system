@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     }
 
     const live = await dlvC2C.pincode(pin);
+    console.log("Delhivery Pincode Response:", live);
 
     return NextResponse.json(live); // return FULL response EXACTLY like Delhivery
   } catch (e: any) {

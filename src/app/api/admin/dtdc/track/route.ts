@@ -4,7 +4,6 @@ import { db } from "@/app/db/postgres";
 import {
   consignments,
   trackingEvents,
-  trackingHistory,
   clientCredentials
 } from "@/app/db/schema";
 import { eq, and, sql, inArray, notInArray } from "drizzle-orm";
@@ -295,28 +294,6 @@ export async function POST(req: Request) {
       const batches = chunk(eventInsertValues, 200);
       for (const batch of batches) {
         await db.insert(trackingEvents).values(batch).onConflictDoNothing();
-      }
-    }
-
-    // ------------------------------------------
-    // ⭐ HISTORY INSERT — NOW BATCHED (200 rows)
-    // ------------------------------------------
-    const histInsert = bulkHistoryRows
-      .map(h => {
-        const cid = idMap.get(h.awb);
-        if (!cid) return null;
-        return {
-          consignmentId: cid,
-          oldStatus: h.oldStatus,
-          newStatus: h.newStatus
-        };
-      })
-      .filter(Boolean) as any[];
-
-    if (histInsert.length > 0) {
-      const batches = chunk(histInsert, 200);
-      for (const batch of batches) {
-        await db.insert(trackingHistory).values(batch);
       }
     }
 

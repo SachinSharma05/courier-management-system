@@ -195,7 +195,7 @@ export default function ClientTrackWrapper({ clientId }: { clientId: number }) {
         toast.success("Tracking updated");
       }
 
-      await fetchPage(true);
+      await fetchPage(true); 
       toast.success("Tracking updated");
     } catch (e) {
       toast.error("Failed to refresh");

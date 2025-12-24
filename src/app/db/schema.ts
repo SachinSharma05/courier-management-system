@@ -1,79 +1,127 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text, varchar, timestamp, uuid, date, time, integer, boolean, numeric, json, unique, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, varchar, timestamp, uuid, 
+        integer, boolean, numeric, json, unique, jsonb, index } from "drizzle-orm/pg-core";
 
 // CONSIGNMENTS
-export const consignments = pgTable("consignments", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  client_id: integer("client_id").notNull(),
-  provider: varchar("provider", { length: 30 }).notNull(), // delhivery | dtdc | maruti
-  awb: varchar("awb", { length: 50 }).notNull().unique(),
-  reference_number: varchar("reference_number", { length: 100 }),
-  service_type: varchar("service_type", { length: 30 }),
-  payment_mode: varchar("payment_mode", { length: 20 }),
-  cod_amount: numeric("cod_amount", { precision: 12, scale: 2 }),
-  origin_pincode: varchar("origin_pincode", { length: 10 }),
-  destination_pincode: varchar("destination_pincode", { length: 10 }),
-  origin: text("origin"),
-  destination: text("destination"),
-  length_cm: integer("length_cm"),
-  breadth_cm: integer("breadth_cm"),
-  height_cm: integer("height_cm"),
-  weight_g: integer("weight_g"),
-  chargeable_weight_g: integer("chargeable_weight_g"),
-  estimated_cost: numeric("estimated_cost", { precision: 12, scale: 2 }),
-  invoice_amount: numeric("invoice_amount", { precision: 12, scale: 2 }),
-  current_status: varchar("current_status", { length: 100 }),
-  expected_delivery_date: timestamp("expected_delivery_date"),
-  booked_at: timestamp("booked_at"),
-  last_status_at: timestamp("last_status_at"),
-  created_at: timestamp("created_at").defaultNow(),
-  updated_at: timestamp("updated_at").defaultNow(),
-});
+export const consignments = pgTable(
+  "consignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    client_id: integer("client_id").notNull(),
+    provider: varchar("provider", { length: 30 }).notNull(),
+    awb: varchar("awb", { length: 50 }).notNull().unique(),
+    reference_number: varchar("reference_number", { length: 100 }),
+    service_type: varchar("service_type", { length: 30 }),
+    payment_mode: varchar("payment_mode", { length: 20 }),
+    cod_amount: numeric("cod_amount", { precision: 12, scale: 2 }),
+    origin_pincode: varchar("origin_pincode", { length: 10 }),
+    destination_pincode: varchar("destination_pincode", { length: 10 }),
+    origin: text("origin"),
+    destination: text("destination"),
+    length_cm: integer("length_cm"),
+    breadth_cm: integer("breadth_cm"),
+    height_cm: integer("height_cm"),
+    weight_g: integer("weight_g"),
+    chargeable_weight_g: integer("chargeable_weight_g"),
+    estimated_cost: numeric("estimated_cost", { precision: 12, scale: 2 }),
+    invoice_amount: numeric("invoice_amount", { precision: 12, scale: 2 }),
+    current_status: varchar("current_status", { length: 100 }),
+    expected_delivery_date: timestamp("expected_delivery_date"),
+    booked_at: timestamp("booked_at"),
+    last_status_at: timestamp("last_status_at"),
+    created_at: timestamp("created_at").defaultNow(),
+    updated_at: timestamp("updated_at").defaultNow(),
+  },
+  (t) => ({
+    // 🔥 MOST USED
+    clientIdx: index("consignments_client_id_idx").on(t.client_id),
 
-export const providerShipments = pgTable("provider_shipments", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  consignment_id: uuid("consignment_id")
-    .notNull()
-    .references(() => consignments.id, { onDelete: "cascade" }),
-  provider: varchar("provider", { length: 30 }).notNull(),
-  provider_order_id: varchar("provider_order_id", { length: 100 }),
-  provider_tracking_id: varchar("provider_tracking_id", { length: 100 }),
-  provider_awb: varchar("provider_awb", { length: 50 }),
-  provider_cawb: varchar("provider_cawb", { length: 50 }),
-  label_url: text("label_url"),
-  manifest_url: text("manifest_url"),
-  pod_url: text("pod_url"),
-  raw_request: jsonb("raw_request"),
-  raw_response: jsonb("raw_response"),
-  last_synced_at: timestamp("last_synced_at"),
-  created_at: timestamp("created_at").defaultNow(),
-});
+    clientProviderIdx: index("consignments_client_provider_idx").on(
+      t.client_id,
+      t.provider
+    ),
+
+    statusIdx: index("consignments_status_idx").on(t.current_status),
+
+    createdAtIdx: index("consignments_created_at_idx").on(t.created_at),
+
+    providerIdx: index("consignments_provider_idx").on(t.provider),
+  })
+);
+
+// PROVIDER SHIPMENTS
+export const providerShipments = pgTable(
+  "provider_shipments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    consignment_id: uuid("consignment_id")
+      .notNull()
+      .references(() => consignments.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 30 }).notNull(),
+    provider_order_id: varchar("provider_order_id", { length: 100 }),
+    provider_tracking_id: varchar("provider_tracking_id", { length: 100 }),
+    provider_awb: varchar("provider_awb", { length: 50 }),
+    provider_cawb: varchar("provider_cawb", { length: 50 }),
+    label_url: text("label_url"),
+    manifest_url: text("manifest_url"),
+    pod_url: text("pod_url"),
+    raw_request: jsonb("raw_request"),
+    raw_response: jsonb("raw_response"),
+    last_synced_at: timestamp("last_synced_at"),
+    created_at: timestamp("created_at").defaultNow(),
+  },
+  (t) => ({
+    // 🔥 joins
+    consignmentIdx: index("provider_shipments_consignment_idx").on(
+      t.consignment_id
+    ),
+
+    providerIdx: index("provider_shipments_provider_idx").on(t.provider),
+
+    // 🔄 background sync jobs
+    syncIdx: index("provider_shipments_last_synced_idx").on(
+      t.last_synced_at
+    ),
+
+    // lookup by provider awb
+    providerAwbIdx: index("provider_shipments_provider_awb_idx").on(
+      t.provider_awb
+    ),
+  })
+);
 
 // TRACKING EVENTS
-export const trackingEvents = pgTable("tracking_events", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  consignment_id: uuid("consignment_id")
-    .notNull()
-    .references(() => consignments.id, { onDelete: "cascade" }),
-  provider: varchar("provider", { length: 30 }).notNull(),
-  awb: varchar("awb", { length: 50 }).notNull(),
-  status: varchar("status", { length: 100 }),
-  location: varchar("location", { length: 200 }),
-  remarks: text("remarks"),
-  event_time: timestamp("event_time"),
-  raw: jsonb("raw"),
-  created_at: timestamp("created_at").defaultNow(),
-});
+export const trackingEvents = pgTable(
+  "tracking_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    consignment_id: uuid("consignment_id")
+      .notNull()
+      .references(() => consignments.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 30 }).notNull(),
+    awb: varchar("awb", { length: 50 }).notNull(),
+    status: varchar("status", { length: 100 }),
+    location: varchar("location", { length: 200 }),
+    remarks: text("remarks"),
+    event_time: timestamp("event_time"),
+    raw: jsonb("raw"),
+    created_at: timestamp("created_at").defaultNow(),
+  },
+  (t) => ({
+    // 🔥 timeline fetch
+    consignmentTimeIdx: index(
+      "tracking_events_consignment_time_idx"
+    ).on(t.consignment_id, t.event_time),
 
-// TRACKING HISTORY LOG
-export const trackingHistory = pgTable("tracking_history", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  consignment_id: uuid("consignment_id"),
-  old_status: text("old_status"),
-  new_status: text("new_status"),
-  changed_at: timestamp("changed_at").defaultNow(),
-});
+    awbIdx: index("tracking_events_awb_idx").on(t.awb),
 
+    providerIdx: index("tracking_events_provider_idx").on(t.provider),
+
+    createdAtIdx: index("tracking_events_created_at_idx").on(t.created_at),
+  })
+);
+
+// CLIENT CREDENTIALS
 export const clientCredentials = pgTable(
   "client_credentials",
   {

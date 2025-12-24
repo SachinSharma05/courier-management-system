@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       key,
       name,
       description: description ?? "",
-      isActive: body.is_active ?? true,
+      is_active: body.is_active ?? true,
     });
 
     return NextResponse.json({ ok: true });

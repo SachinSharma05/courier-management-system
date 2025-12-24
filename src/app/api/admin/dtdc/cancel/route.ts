@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments, trackingHistory, clientCredentials } from "@/app/db/schema";
+import { consignments, clientCredentials } from "@/app/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/app/lib/crypto/encryption";
 
@@ -70,13 +70,6 @@ export async function POST(req: Request) {
       .update(consignments)
       .set({ current_status: "CANCELLED" })
       .where(eq(consignments.awb, awb));
-
-    await db.insert(trackingHistory).values({
-      consignment_id: awb,
-      old_status: null,
-      new_status: "CANCELLED",
-      changed_at: new Date(),
-    });
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

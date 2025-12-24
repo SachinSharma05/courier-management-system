@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/app/db/postgres";
-import { consignments, trackingEvents, trackingHistory } from "@/app/db/schema";
+import { consignments, trackingEvents } from "@/app/db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
 /* ----------------- Helpers (UNCHANGED) ----------------- */
@@ -125,13 +125,6 @@ export async function GET(req: NextRequest) {
       .where(eq(trackingEvents.consignment_id, c.id))
       .orderBy(asc(trackingEvents.event_time));
 
-    // 3️⃣ History (FIXED JOIN)
-    const historyRows = await db
-      .select()
-      .from(trackingHistory)
-      .where(eq(trackingHistory.consignment_id, c.id))
-      .orderBy(desc(trackingHistory.changed_at));
-
     // 4️⃣ Summary
     const summary = {
       awb: c.awb,
@@ -182,7 +175,6 @@ export async function GET(req: NextRequest) {
       tat,
       movement,
       timeline: cleanTimeline,
-      history: historyRows,
       reports,
       consignment: c,
     });
